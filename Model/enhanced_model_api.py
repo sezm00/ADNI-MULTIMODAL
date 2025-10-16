@@ -4,13 +4,57 @@ import joblib
 import pandas as pd
 import numpy as np
 import os
+import sys
 
 # Paths
-MODEL_PATH = r"E:\University\Year_3\Grad\ADNI_MULTIMODAL\Model\test_models\catboost_alzheimers_model.pkl"
-DATASET_PATH = "alzheimers_disease_data.csv"
+# Allow overriding the model path with an environment variable for portability
+MODEL_PATH = os.environ.get('MODEL_PATH')
+DATASET_PATH = os.environ.get('DATASET_PATH', "alzheimers_disease_data.csv")
+
+# If the dataset path isn't absolute or doesn't exist in cwd, try relative to this file
+if not os.path.isabs(DATASET_PATH) and not os.path.exists(DATASET_PATH):
+    candidate_dataset = os.path.join(os.path.dirname(__file__), DATASET_PATH)
+    if os.path.exists(candidate_dataset):
+        DATASET_PATH = candidate_dataset
+
+# If MODEL_PATH not provided, try common relative locations or search for a .pkl in known dirs
+if not MODEL_PATH:
+    # common relative location used in project structure
+    candidate = os.path.join(os.path.dirname(__file__), 'test_models', 'catboost_alzheimers_model.pkl')
+    if os.path.exists(candidate):
+        MODEL_PATH = candidate
+    else:
+        # search for any .pkl under Model/test_models or current Model directory
+        search_dirs = [
+            os.path.join(os.path.dirname(__file__), 'test_models'),
+            os.path.dirname(__file__)
+        ]
+        found = None
+        for d in search_dirs:
+            try:
+                if os.path.isdir(d):
+                    for fname in os.listdir(d):
+                        if fname.lower().endswith('.pkl'):
+                            found = os.path.join(d, fname)
+                            break
+            except Exception:
+                continue
+            if found:
+                break
+
+        MODEL_PATH = found
 
 # Load model
 try:
+    # Make sure the Model directory is importable so unpickling can find custom classes
+    model_dir = os.path.dirname(__file__)
+    if model_dir not in sys.path:
+        sys.path.insert(0, model_dir)
+    # Try import of local dummy_model (no-op if not present)
+    try:
+        import dummy_model  # noqa: F401
+    except Exception:
+        pass
     model = joblib.load(MODEL_PATH)
     print(f"✅ Model loaded successfully from {MODEL_PATH}")
 except Exception as e:

@@ -4,8 +4,35 @@ import joblib
 import pandas as pd
 import os
 
+import os
+
 # Load model
-model_path = r"E:\University\Year_3\Grad\ADNI_MULTIMODAL\Model\test_models\catboost_alzheimers_model.pkl"
+# Prefer environment variable, otherwise look in common relative locations
+model_path = os.environ.get('MODEL_PATH')
+if not model_path:
+    candidate = os.path.join(os.path.dirname(__file__), 'test_models', 'catboost_alzheimers_model.pkl')
+    if os.path.exists(candidate):
+        model_path = candidate
+    else:
+        # fallback: pick first .pkl found in test_models or current dir
+        search_dirs = [
+            os.path.join(os.path.dirname(__file__), 'test_models'),
+            os.path.dirname(__file__)
+        ]
+        found = None
+        for d in search_dirs:
+            try:
+                if os.path.isdir(d):
+                    for fname in os.listdir(d):
+                        if fname.lower().endswith('.pkl'):
+                            found = os.path.join(d, fname)
+                            break
+            except Exception:
+                continue
+            if found:
+                break
+
+        model_path = found
 
 try:
     model = joblib.load(model_path)
