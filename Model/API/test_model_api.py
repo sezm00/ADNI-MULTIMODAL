@@ -3,7 +3,7 @@ import joblib
 import pandas as pd
 
 # Load model
-model = joblib.load("catboost_alzheimers_model.pkl")
+model = joblib.load(r"E:\University\Year_3\Grad\ADNI_MULTIMODAL\Model\test_models\catboost_alzheimers_model.pkl")
 
 # Create app
 app = Flask(__name__)
