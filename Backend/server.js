@@ -13,6 +13,7 @@ const assessmentRoutes = require('./routes/assessments');
 const medicationRoutes = require('./routes/medications');
 const activityRoutes = require('./routes/activities');
 const appointmentRoutes = require('./routes/appointments');
+const predictionRoutes = require('./routes/predictions');
 
 // Initialize Express app
 const app = express();
@@ -60,6 +61,7 @@ app.use('/api/assessments', assessmentRoutes);
 app.use('/api/medications', medicationRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/predictions', predictionRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -82,7 +84,8 @@ app.get('/', (req, res) => {
       assessments: '/api/assessments',
       medications: '/api/medications',
       activities: '/api/activities',
-      appointments: '/api/appointments'
+      appointments: '/api/appointments',
+      predictions: '/api/predictions'
     }
   });
 });
