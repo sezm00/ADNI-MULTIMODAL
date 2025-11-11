@@ -1,0 +1,4 @@
+PatientID,Age,Gender,Ethnicity,EducationLevel,BMI,Smoking,AlcoholConsumption,PhysicalActivity,DietQuality,SleepQuality,FamilyHistoryAlzheimers,CardiovascularDisease,Diabetes,Depression,HeadInjury,Hypertension,SystolicBP,DiastolicBP,CholesterolTotal,CholesterolLDL,CholesterolHDL,CholesterolTriglycerides,MMSE,FunctionalAssessment,MemoryComplaints,BehavioralProblems,ADL,Confusion,Disorientation,PersonalityChanges,DifficultyCompletingTasks,Forgetfulness,DoctorInCharge
+1001,72,0,0,2,24.5,0,5.2,7.5,6.2,7.8,1,0,0,0,0,1,135,80,200,120,50,150,27,8.2,0,0,9.1,0,0,0,1,1,Dr. A
+1002,65,1,1,1,29.2,1,2.1,5.0,4.5,6.1,0,1,1,0,1,0,150,90,240,160,45,200,24,7.4,1,1,8.0,1,0,1,1,1,Dr. B
+1003,83,0,2,0,21.8,0,9.0,3.2,2.9,5.4,1,1,0,1,0,1,145,78,250,180,38,220,19,5.9,1,0,6.2,1,1,0,1,1,Dr. C

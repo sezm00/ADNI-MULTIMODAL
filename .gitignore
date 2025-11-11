@@ -1,0 +1,8 @@
+# Ignore the entire data folder
+Main/data/
+
+# Ignore Python/Jupyter temp files
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+*.log
