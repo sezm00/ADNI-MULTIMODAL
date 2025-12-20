@@ -4,12 +4,12 @@ A modern, minimalistic Medical Brain Analysis Dashboard built with React, Three.
 
 ## Features
 
-- 🧠 Interactive 3D brain model with smooth animations
-- 📊 Real-time health metrics (Dopamine, Brain Fluid, Serotonin)
-- 📅 Schedule management with appointments
-- 🎨 Clean, clinical design with soft blue gradients
-- ✨ Smooth micro-interactions and hover effects
-- 📱 Responsive layout
+- Interactive 3D brain model with smooth animations
+- Real-time health metrics (Dopamine, Brain Fluid, Serotonin)
+- Schedule management with appointments
+- Clean, clinical design with soft blue gradients
+- Smooth micro-interactions and hover effects
+- Responsive layout
 
 ## Tech Stack
 
