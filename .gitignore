@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Ignore the entire data folder
 Main/data/
 
@@ -6,3 +7,25 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 *.log
+=======
+node_modules
+dist
+.env
+.env.local
+.env.production.local
+.env.development.local
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+>>>>>>> f2b4361aa88b43df163e2a49e793de759a20adf9
