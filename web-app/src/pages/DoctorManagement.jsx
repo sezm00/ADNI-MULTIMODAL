@@ -422,7 +422,7 @@ function DoctorManagement() {
                 <h3 className="text-white font-semibold text-base mb-3">On going Appointments</h3>
                 
                 {selectedAppointment && currentPatient ? (
-                  <div className="grid grid-cols-[1fr_1.2fr] gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-4">
                     <div className="space-y-3">
                       <div>
                         <h4 className="text-gray-400 text-xs mb-2">Patient Info</h4>
@@ -478,9 +478,9 @@ function DoctorManagement() {
                       </div>
                     </div>
 
-                    <div>
+                    <div className="flex flex-col">
                       <h4 className="text-gray-400 text-xs mb-2">Consultation Notes</h4>
-                      <div className="bg-white/5 rounded-xl p-3 h-64">
+                      <div className="bg-white/5 rounded-xl p-3 flex-1 overflow-y-auto mb-4">
                         <p className="text-white text-sm leading-relaxed mb-4">
                           Lorem ipsum dolor sit amet consectetur. Vitae vitae pauere nunc senectus est. Fermentum 
                           suspendisse vitae enim diam pharetra. Congue ut sapien cursus massa odio placerat dignissim 
@@ -502,7 +502,7 @@ function DoctorManagement() {
                         </ul>
                       </div>
 
-                      <div className="flex gap-2 mt-3">
+                      <div className="flex gap-2">
                         <button className="flex-1 py-2.5 px-3 rounded-lg border border-white/20 text-white hover:bg-white/5 transition-all flex flex-col items-center justify-center gap-1">
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
