@@ -1,6 +1,6 @@
 import sys
 import json
-from simplified_predictor import get_predictor
+from predictor import get_predictor
 
 
 def _read_payload():
@@ -17,23 +17,17 @@ def _read_payload():
         return json.loads(sys.argv[1])
     raise ValueError("No JSON payload provided")
 
+
 def main():
     try:
-        # Get patient data from command line argument
         patient_data = _read_payload()
-        
-        # Get predictor instance
         predictor = get_predictor()
-        
-        # Make prediction
         result = predictor.predict(patient_data)
-        
-        # Output result as JSON
         print(json.dumps(result))
-        
     except Exception as e:
         print(json.dumps({"error": str(e)}), file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

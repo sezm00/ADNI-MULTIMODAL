@@ -3,6 +3,9 @@ import axios from 'axios';
 
 function AIDiagnosis() {
   const [formData, setFormData] = useState({
+    // Dataset lookup (optional)
+    RID: '',
+
     // Demographics
     AGE: '',
     PTGENDER: 'Male',
@@ -42,7 +45,6 @@ function AIDiagnosis() {
     FDG_bl: '',
     
     // Visit Info
-    VISCODE_ptd: 'bl',
     Month: '0'
   });
 
@@ -73,7 +75,7 @@ function AIDiagnosis() {
         const value = formData[key];
         if (value !== '') {
           // Keep categorical fields as strings
-          if (['PTGENDER', 'PTMARRY', 'VISCODE_ptd'].includes(key)) {
+          if (['PTGENDER', 'PTMARRY'].includes(key)) {
             payload[key] = value;
           } else {
             // Convert to number
@@ -85,10 +87,25 @@ function AIDiagnosis() {
         }
       });
 
+      // If RID is present, switch to dataset-backed prediction mode.
+      if (formData.RID !== '') {
+        const ridInt = parseInt(formData.RID, 10);
+        if (!isNaN(ridInt)) {
+          payload.RID = ridInt;
+          payload.useDataset = true;
+        }
+      }
+
       const response = await axios.post('http://localhost:5000/api/predict', payload);
       
       if (response.data.success) {
-        setResult(response.data.prediction);
+        setResult({
+          prediction: response.data.prediction,
+          confidence: response.data.confidence,
+          probabilities: response.data.probabilities,
+          risk_assessment: response.data.risk_assessment,
+          timestamp: response.data.timestamp,
+        });
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Prediction failed. Please check your inputs and try again.');
@@ -116,7 +133,31 @@ function AIDiagnosis() {
   };
 
   return (
-    <div className="w-full max-w-6xl">
+    <div className="w-full">
+      {/* Assessment History Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
+        <div className="glass-card p-4">
+          <div className="text-gray-400 text-xs mb-1">Total Assessments</div>
+          <div className="text-white text-2xl font-bold">12</div>
+          <div className="text-gray-400 text-xs mt-1">Last: 3 days ago</div>
+        </div>
+        <div className="glass-card p-4">
+          <div className="text-gray-400 text-xs mb-1">Latest Score</div>
+          <div className="text-emerald-400 text-2xl font-bold">CN</div>
+          <div className="text-gray-400 text-xs mt-1">Cognitively Normal</div>
+        </div>
+        <div className="glass-card p-4">
+          <div className="text-gray-400 text-xs mb-1">Confidence</div>
+          <div className="text-blue-400 text-2xl font-bold">92%</div>
+          <div className="text-gray-400 text-xs mt-1">High accuracy</div>
+        </div>
+        <div className="glass-card p-4">
+          <div className="text-gray-400 text-xs mb-1">Trend</div>
+          <div className="text-teal-400 text-2xl font-bold">Improving</div>
+          <div className="text-gray-400 text-xs mt-1">+5% vs last</div>
+        </div>
+      </div>
+
       <div className="glass-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 bg-gradient-to-br from-teal-400 to-teal-600 rounded-lg flex items-center justify-center">
@@ -176,6 +217,21 @@ function AIDiagnosis() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
+                        <label className="block text-gray-300 text-sm font-medium mb-2">RID (optional)</label>
+                        <input
+                          type="number"
+                          name="RID"
+                          value={formData.RID}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                          placeholder="e.g., 3"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
                         <label className="block text-gray-300 text-sm font-medium mb-2">
                           Age (years) <span className="text-red-400">*</span>
                         </label>
@@ -185,7 +241,7 @@ function AIDiagnosis() {
                           name="AGE"
                           value={formData.AGE}
                           onChange={handleChange}
-                          required
+                          required={!formData.RID}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
                                    text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="e.g., 75.5"
@@ -251,7 +307,7 @@ function AIDiagnosis() {
                           name="MMSE"
                           value={formData.MMSE}
                           onChange={handleChange}
-                          required
+                          required={!formData.RID}
                           min="0"
                           max="30"
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
@@ -376,7 +432,7 @@ function AIDiagnosis() {
                         name="Hippocampus"
                         value={formData.Hippocampus}
                         onChange={handleChange}
-                        required
+                        required={!formData.RID}
                         className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
                                  text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                         placeholder="e.g., 3500.5"
@@ -548,19 +604,19 @@ function AIDiagnosis() {
                     <div className="text-gray-300 text-sm space-y-2">
                       {result.prediction === 'AD' && (
                         <>
-                          <p className="text-red-300">⚠️ The model indicates a high probability of Alzheimer's Disease.</p>
+                          <p className="text-red-300">The model indicates a high probability of Alzheimer's Disease.</p>
                           <p>Immediate consultation with a neurologist is recommended for comprehensive evaluation and treatment planning.</p>
                         </>
                       )}
                       {result.prediction === 'MCI' && (
                         <>
-                          <p className="text-orange-300">⚠️ Mild Cognitive Impairment detected.</p>
+                          <p className="text-orange-300">Mild Cognitive Impairment detected.</p>
                           <p>Regular monitoring and cognitive interventions are advised. Follow-up assessments every 6 months recommended.</p>
                         </>
                       )}
                       {result.prediction === 'CN' && (
                         <>
-                          <p className="text-emerald-300">✓ Cognitive function appears normal.</p>
+                          <p className="text-emerald-300">Cognitive function appears normal.</p>
                           <p>Continue healthy lifestyle practices and regular health check-ups as preventive measures.</p>
                         </>
                       )}
@@ -580,6 +636,53 @@ function AIDiagnosis() {
               )}
             </div>
           </div>
+      </div>
+
+      {/* Assessment History */}
+      <div className="glass-card p-5 mt-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-white font-semibold">Assessment History</h3>
+          <button className="text-teal-400 text-sm hover:text-teal-300">View All</button>
+        </div>
+        <div className="space-y-3">
+          {[
+            { date: '3 days ago', result: 'CN', confidence: 92, mmse: 28, adas: 10 },
+            { date: '1 week ago', result: 'CN', confidence: 90, mmse: 27, adas: 11 },
+            { date: '2 weeks ago', result: 'CN', confidence: 89, mmse: 28, adas: 10 },
+            { date: '1 month ago', result: 'MCI', confidence: 78, mmse: 25, adas: 15 },
+          ].map((assessment, idx) => (
+            <div key={idx} className="glass-card p-4 hover:bg-white/15 transition-all">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getDiagnosisColor(assessment.result)} flex items-center justify-center`}>
+                    <span className="text-white font-bold text-sm">{assessment.result}</span>
+                  </div>
+                  <div>
+                    <div className="text-white font-medium text-sm">{getDiagnosisLabel(assessment.result)}</div>
+                    <div className="text-gray-400 text-xs">{assessment.date}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <div className="text-gray-400 text-xs">Confidence</div>
+                    <div className="text-teal-400 text-sm font-semibold">{assessment.confidence}%</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-gray-400 text-xs">MMSE</div>
+                    <div className="text-white text-sm font-semibold">{assessment.mmse}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-gray-400 text-xs">ADAS</div>
+                    <div className="text-white text-sm font-semibold">{assessment.adas}</div>
+                  </div>
+                  <button className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs transition-all">
+                    View Details
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
