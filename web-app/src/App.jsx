@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BrainCanvas from './components/BrainCanvas';
+import AIDiagnosis from './pages/AIDiagnosis';
 
 function App() {
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(15);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
   const dates = [
@@ -90,12 +92,20 @@ function App() {
 
         <div className="flex h-[calc(100%-80px)]">
           <div className="w-20 flex flex-col items-center py-6 gap-4 border-r border-white/10">
-            <button className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 flex items-center justify-center text-white transition-all">
+            <button 
+              onClick={() => setActiveTab('dashboard')} 
+              className={`w-12 h-12 rounded-xl flex items-center justify-center text-white transition-all ${
+                activeTab === 'dashboard' ? 'bg-gradient-to-br from-teal-400 to-teal-600' : 'bg-white/10 hover:bg-white/20'
+              }`}>
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
             </button>
-            <button onClick={() => navigate('/ai-diagnosis')} className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all">
+            <button 
+              onClick={() => setActiveTab('ai-diagnosis')} 
+              className={`w-12 h-12 rounded-xl flex items-center justify-center text-white transition-all ${
+                activeTab === 'ai-diagnosis' ? 'bg-gradient-to-br from-teal-400 to-teal-600' : 'bg-white/10 hover:bg-white/20'
+              }`}>
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
@@ -129,6 +139,7 @@ function App() {
           </div>
 
           <div className="flex-1 p-8 overflow-y-auto">
+            {activeTab === 'dashboard' && (
             <div className="grid grid-cols-[1.2fr_1fr] gap-8">
               
               <div className="relative">
@@ -293,6 +304,11 @@ function App() {
               </div>
 
             </div>
+            )}
+
+            {activeTab === 'ai-diagnosis' && (
+              <AIDiagnosis />
+            )}
           </div>
         </div>
       </div>

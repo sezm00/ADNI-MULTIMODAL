@@ -116,28 +116,27 @@ function AIDiagnosis() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-gray-900 via-gray-800 to-teal-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="glass-card p-8 mb-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl flex items-center justify-center">
-              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">AI-Powered Alzheimer's Diagnosis</h1>
-              <p className="text-gray-400 text-sm">Advanced XGBoost model for cognitive assessment</p>
-            </div>
+    <div className="w-full max-w-6xl">
+      <div className="glass-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 bg-gradient-to-br from-teal-400 to-teal-600 rounded-lg flex items-center justify-center">
+            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
           </div>
+          <div>
+            <h1 className="text-lg font-bold text-white">AI-Powered Alzheimer's Diagnosis</h1>
+            <p className="text-gray-400 text-xs">Advanced XGBoost model for cognitive assessment</p>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Input Form */}
-            <div>
-              {/* Tab Navigation */}
-              <div className="flex gap-2 mb-4">
-                <button
-                  type="button"
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Input Form */}
+          <div>
+            {/* Tab Navigation */}
+            <div className="flex gap-2 mb-4">
+              <button
+                type="button"
                   onClick={() => setActiveTab('basic')}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     activeTab === 'basic'
@@ -188,7 +187,7 @@ function AIDiagnosis() {
                           onChange={handleChange}
                           required
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="e.g., 75.5"
                         />
                       </div>
@@ -216,7 +215,7 @@ function AIDiagnosis() {
                           value={formData.PTEDUCAT}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="e.g., 16"
                         />
                       </div>
@@ -256,7 +255,7 @@ function AIDiagnosis() {
                           min="0"
                           max="30"
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="e.g., 24"
                         />
                       </div>
@@ -269,7 +268,7 @@ function AIDiagnosis() {
                           value={formData.ADAS13}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="e.g., 18.5"
                         />
                       </div>
@@ -285,7 +284,7 @@ function AIDiagnosis() {
                           value={formData.ADAS11}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -298,7 +297,7 @@ function AIDiagnosis() {
                           value={formData.CDRSB}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -314,7 +313,7 @@ function AIDiagnosis() {
                           value={formData.MOCA}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -327,7 +326,7 @@ function AIDiagnosis() {
                           value={formData.FAQ}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -343,7 +342,7 @@ function AIDiagnosis() {
                           value={formData.RAVLT_immediate}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -356,7 +355,7 @@ function AIDiagnosis() {
                           value={formData.RAVLT_learning}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -379,7 +378,7 @@ function AIDiagnosis() {
                         onChange={handleChange}
                         required
                         className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                 text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                 text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                         placeholder="e.g., 3500.5"
                       />
                     </div>
@@ -394,7 +393,7 @@ function AIDiagnosis() {
                           value={formData.Ventricles}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -407,7 +406,7 @@ function AIDiagnosis() {
                           value={formData.WholeBrain}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -423,7 +422,7 @@ function AIDiagnosis() {
                           value={formData.Entorhinal}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -436,7 +435,7 @@ function AIDiagnosis() {
                           value={formData.Fusiform}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -452,7 +451,7 @@ function AIDiagnosis() {
                           value={formData.MidTemp}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -465,7 +464,7 @@ function AIDiagnosis() {
                           value={formData.ICV}
                           onChange={handleChange}
                           className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
-                                   text-white placeholder-gray-400 text-sm focus:outline-none focus:border-teal-400 transition-all"
+                                   text-white placeholder-gray-300 text-sm focus:outline-none focus:border-teal-400 transition-all"
                           placeholder="Optional"
                         />
                       </div>
@@ -581,7 +580,6 @@ function AIDiagnosis() {
               )}
             </div>
           </div>
-        </div>
       </div>
     </div>
   );
