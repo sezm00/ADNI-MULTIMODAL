@@ -1,0 +1,4 @@
+Model,Accuracy,Precision,Recall,F1_Score,ROC_AUC
+XGBoost,0.9218,0.9224,0.9218,0.9219,0.9836
+CatBoost,0.9109,0.9113,0.9109,0.911,0.9824
+Logistic (SGD),0.7661,0.778,0.7661,0.7663,
