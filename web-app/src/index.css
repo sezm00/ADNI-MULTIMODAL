@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-gradient-to-br from-gray-800 via-gray-700 to-teal-800;
+    @apply bg-gradient-to-br from-teal-900 via-teal-800 to-teal-900;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
       sans-serif;
@@ -15,19 +15,19 @@
 
 @layer components {
   .glass-card {
-    @apply bg-white/10 backdrop-blur-2xl rounded-3xl border border-white/20 
+    @apply bg-white/10 backdrop-blur-2xl rounded-3xl border border-white/20
            transition-all duration-300;
   }
-  
+
   .glass-card:hover {
     @apply bg-white/15 border-white/30;
   }
-  
+
   .icon-btn {
     @apply w-12 h-12 rounded-2xl flex items-center justify-center transition-all
            duration-300 cursor-pointer bg-white/10 hover:bg-white/20;
   }
-  
+
   .dark-glass {
     @apply bg-gray-900/40 backdrop-blur-2xl border border-white/10;
   }
@@ -37,13 +37,17 @@
   .animate-pulse-slow {
     animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
-  
+
   @keyframes pulse {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

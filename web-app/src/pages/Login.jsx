@@ -14,15 +14,15 @@ function Login() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
+
     try {
       const response = await authAPI.login(email, password, userType);
-      
+
       if (response.data.success) {
         // Store token and user data
         localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
-        
+
         // Navigate based on role
         if (response.data.user.role === 'patient') {
           navigate('/patient-dashboard');
@@ -66,7 +66,7 @@ function Login() {
               onClick={() => setUserType('doctor')}
               className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${
                 userType === 'doctor'
-                  ? 'bg-gradient-to-br from-red-400 to-red-600 text-white'
+                  ? 'bg-gradient-to-br from-teal-400 to-teal-600 text-white'
                   : 'bg-white/10 text-gray-300 hover:bg-white/20'
               }`}
             >
@@ -99,7 +99,7 @@ function Login() {
                 placeholder="Enter your email"
                 required
                 disabled={loading}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20
                          text-white placeholder-gray-400 text-sm focus:outline-none focus:border-white/40 transition-all
                          disabled:opacity-50 disabled:cursor-not-allowed"
               />
@@ -114,7 +114,7 @@ function Login() {
                 placeholder="Enter your password"
                 required
                 disabled={loading}
-                className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 
+                className="w-full px-4 py-3 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20
                          text-white placeholder-gray-400 text-sm focus:outline-none focus:border-white/40 transition-all
                          disabled:opacity-50 disabled:cursor-not-allowed"
               />
@@ -133,11 +133,11 @@ function Login() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 rounded-xl text-white font-medium transition-all hover:opacity-90 
+              className={`w-full py-3 rounded-xl text-white font-medium transition-all hover:opacity-90
                          disabled:opacity-50 disabled:cursor-not-allowed ${
                 userType === 'patient'
                   ? 'bg-gradient-to-br from-teal-400 to-teal-600'
-                  : 'bg-gradient-to-br from-red-400 to-red-600'
+                  : 'bg-gradient-to-br from-teal-400 to-teal-600'
               }`}
             >
               {loading ? 'Logging in...' : `Login as ${userType === 'patient' ? 'Patient' : 'Doctor'}`}

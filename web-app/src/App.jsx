@@ -52,7 +52,7 @@ function App() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-gray-800 via-gray-700 to-teal-800 p-6">
       <div className="max-w-[1600px] mx-auto glass-card overflow-hidden h-[calc(100vh-3rem)]">
-        
+
         <div className="flex items-center justify-between px-8 py-5 border-b border-white/10">
           <div className="flex items-center gap-3">
             <span className="text-white font-semibold text-base">ALZ ForeSight</span>
@@ -66,7 +66,7 @@ function App() {
               <input
                 type="text"
                 placeholder="Search"
-                className="w-full pl-12 pr-4 py-2.5 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 
+                className="w-full pl-12 pr-4 py-2.5 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20
                          text-white placeholder-gray-400 text-sm focus:outline-none focus:border-white/40 transition-all"
               />
             </div>
@@ -91,8 +91,8 @@ function App() {
 
         <div className="flex h-[calc(100%-80px)]">
           <div className="w-20 flex flex-col items-center py-6 gap-4 border-r border-white/10">
-            <button 
-              onClick={() => setActiveTab('dashboard')} 
+            <button
+              onClick={() => setActiveTab('dashboard')}
               className={`w-12 h-12 rounded-xl flex items-center justify-center text-white transition-all ${
                 activeTab === 'dashboard' ? 'bg-gradient-to-br from-teal-400 to-teal-600' : 'bg-white/10 hover:bg-white/20'
               }`}>
@@ -131,7 +131,7 @@ function App() {
           <div className="flex-1 p-8 overflow-y-auto">
             {activeTab === 'dashboard' && (
             <div className="grid grid-cols-[1.2fr_1fr] gap-8">
-              
+
               <div className="relative">
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-4">
@@ -180,7 +180,7 @@ function App() {
 
                 <div className="relative h-[400px]">
                   <BrainCanvas />
-                  
+
                   <div className="absolute bottom-8 left-4">
                     <div className="glass-card px-4 py-3 flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-xl flex items-center justify-center">
@@ -246,8 +246,8 @@ function App() {
                             className={`
                               h-9 rounded-lg text-xs font-medium transition-all
                               ${!date ? 'invisible' : ''}
-                              ${date === selectedDate 
-                                ? 'bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg' 
+                              ${date === selectedDate
+                                ? 'bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-lg'
                                 : 'text-gray-300 hover:bg-white/5'
                               }
                             `}
