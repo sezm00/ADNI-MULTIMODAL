@@ -182,6 +182,8 @@ def encode_feature(feat: str, val) -> float:
 def main():
     try:
         patient_data = json.loads(sys.argv[1])
+        model_name = sys.argv[2] if len(sys.argv) > 2 else 'xgb_model_top15'
+        model_file = f'{model_name}.joblib'
 
         # Build feature vector in the exact order the model expects
         features = [encode_feature(feat, patient_data.get(feat)) for feat in FEATURE_ORDER]
@@ -190,9 +192,9 @@ def main():
         # ── Locate model file ──
         base = os.path.dirname(os.path.abspath(__file__))
         candidates = [
-            os.path.join(base, '..', '..', 'xgb_model_top15.joblib'),
-            os.path.join(base, '..', '..', 'Main', 'outputs', 'models', 'xgb_model_top15.joblib'),
-            os.path.join(base, 'models', 'xgb_model_top15.joblib'),
+            os.path.join(base, '..', '..', model_file),
+            os.path.join(base, '..', '..', 'Main', 'outputs', 'models', model_file),
+            os.path.join(base, 'models', model_file),
         ]
         model_path = None
         for p in candidates:
@@ -201,7 +203,7 @@ def main():
                 break
         if model_path is None:
             raise FileNotFoundError(
-                'xgb_model_top15.joblib not found. Searched: ' + ', '.join(candidates)
+                f'{model_file} not found. Searched: ' + ', '.join(candidates)
             )
 
         import joblib

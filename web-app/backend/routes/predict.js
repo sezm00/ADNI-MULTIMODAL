@@ -3,10 +3,30 @@ const router = express.Router();
 const { spawn } = require('child_process');
 const path = require('path');
 const https = require('https');
-const http = require('http');
+const { auth, isDoctor } = require('../middleware/auth');
+const auditLog = require('../middleware/auditLog');
+
+const MODEL_VERSION = '1.0.0';
+let activeModel = process.env.MODEL_NAME || 'xgb_model_top15';
+
+// ── GET /api/predict/model ────────────────────────────────────────────────────
+router.get('/model', auth, (req, res) => {
+  res.json({ success: true, model: { name: activeModel, version: MODEL_VERSION } });
+});
+
+// ── PUT /api/predict/model ────────────────────────────────────────────────────
+router.put('/model', auth, isDoctor, (req, res) => {
+  const { name } = req.body;
+  if (!name || typeof name !== 'string') {
+    return res.status(400).json({ success: false, message: 'Model name is required' });
+  }
+  activeModel = name.trim();
+  console.log(`[Model] Switched to: ${activeModel}`);
+  res.json({ success: true, message: `Active model updated to ${activeModel}`, model: { name: activeModel, version: MODEL_VERSION } });
+});
 
 // ── POST /api/predict ─────────────────────────────────────────────────────────
-router.post('/', async (req, res) => {
+router.post('/', auth, auditLog, async (req, res) => {
   try {
     const patientData = req.body;
 
@@ -23,7 +43,8 @@ router.post('/', async (req, res) => {
     // ── Run Python predictor ──────────────────────────────────────────────────
     const pythonProcess = spawn('python3', [
       path.join(__dirname, '..', 'predict_top15.py'),
-      JSON.stringify(patientData)
+      JSON.stringify(patientData),
+      activeModel
     ]);
 
     let outputData = '';
@@ -31,7 +52,19 @@ router.post('/', async (req, res) => {
     pythonProcess.stdout.on('data', d => { outputData += d.toString(); });
     pythonProcess.stderr.on('data', d => { errorData  += d.toString(); });
 
+    // Kill subprocess after 10 seconds
+    const subprocessTimer = setTimeout(() => {
+      pythonProcess.kill();
+      if (!res.headersSent) {
+        res.status(504).json({ success: false, message: 'Prediction timed out' });
+      }
+    }, 10000);
+
     pythonProcess.on('close', async (code) => {
+      clearTimeout(subprocessTimer);
+
+      if (res.headersSent) return;
+
       if (code !== 0) {
         console.error('Python predictor error:', errorData);
         return res.status(500).json({
@@ -63,7 +96,8 @@ router.post('/', async (req, res) => {
       return res.json({
         success: true,
         prediction,
-        aiRecommendations
+        aiRecommendations,
+        modelInfo: { name: activeModel, version: MODEL_VERSION }
       });
     });
 
@@ -160,6 +194,12 @@ Do not add any text before ##SECTION1## or after the last section. Do not use nu
           reject(e);
         }
       });
+    });
+
+    // Abort OpenAI request after 15 seconds
+    req.setTimeout(15000, () => {
+      req.destroy();
+      reject(new Error('OpenAI request timed out after 15s'));
     });
 
     req.on('error', reject);
