@@ -1,12 +1,25 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { gsap } from 'gsap';
 import { appointmentsAPI, doctorsAPI } from '../services/api';
 import AIDiagnosis from './AIDiagnosis';
 import BrainCanvasMini from '../components/BrainCanvasMini';
 
+/* ─── glass card style ─── */
+const glass = {
+  background: 'rgba(255,255,255,0.65)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  border: '0.5px solid rgba(255,255,255,0.75)',
+  borderRadius: 20,
+};
+const glassHover = {
+  background: 'rgba(255,255,255,0.78)',
+};
+
 /* ─── tiny reusable skeleton ─── */
 const Sk = ({ w = 'w-24', h = 'h-3', extra = '' }) => (
-  <div className={`${w} ${h} bg-gray-200 rounded-full animate-pulse ${extra}`} />
+  <div className={`${w} ${h} rounded-full animate-pulse ${extra}`} style={{ background: 'rgba(26,42,58,0.08)' }} />
 );
 
 /* ─── mini sparkline shapes ─── */
@@ -14,11 +27,11 @@ const SparkUp = () => (
   <svg viewBox="0 0 80 32" className="w-full h-8" preserveAspectRatio="none">
     <defs>
       <linearGradient id="su" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.3" />
-        <stop offset="100%" stopColor="#14b8a6" stopOpacity="0" />
+        <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25" />
+        <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
       </linearGradient>
     </defs>
-    <path d="M0 28 Q10 24 20 20 T40 16 T60 12 T80 6" fill="none" stroke="#14b8a6" strokeWidth="2" />
+    <path d="M0 28 Q10 24 20 20 T40 16 T60 12 T80 6" fill="none" stroke="#2563eb" strokeWidth="2" />
     <path d="M0 28 Q10 24 20 20 T40 16 T60 12 T80 6 L80 32 L0 32Z" fill="url(#su)" />
   </svg>
 );
@@ -26,7 +39,7 @@ const SparkDown = () => (
   <svg viewBox="0 0 80 32" className="w-full h-8" preserveAspectRatio="none">
     <defs>
       <linearGradient id="sd" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#f97316" stopOpacity="0.3" />
+        <stop offset="0%" stopColor="#f97316" stopOpacity="0.25" />
         <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
       </linearGradient>
     </defs>
@@ -34,30 +47,30 @@ const SparkDown = () => (
     <path d="M0 6 Q10 10 20 14 T40 18 T60 22 T80 26 L80 32 L0 32Z" fill="url(#sd)" />
   </svg>
 );
-const SparkFlat = ({ color = '#8b5cf6' }) => (
-  <svg viewBox="0 0 80 32" className="w-full h-8" preserveAspectRatio="none">
-    <path d="M0 22 Q15 18 25 20 T45 16 T65 18 T80 14" fill="none" stroke={color} strokeWidth="2" />
-  </svg>
-);
 
 /* ─── bar chart for demographics ─── */
 const MiniBarChart = () => {
   const bars = [
-    { label: '18–30', val: 68, color: 'bg-teal-400' },
-    { label: '31–45', val: 85, color: 'bg-teal-500' },
-    { label: '46–60', val: 72, color: 'bg-emerald-400' },
-    { label: '61–70', val: 54, color: 'bg-emerald-500' },
-    { label: '70+',  val: 40, color: 'bg-teal-300' },
+    { label: '18–30', val: 68 },
+    { label: '31–45', val: 85 },
+    { label: '46–60', val: 72 },
+    { label: '61–70', val: 54 },
+    { label: '70+',  val: 40 },
   ];
   return (
-    <div className="flex items-end gap-3 h-28 pt-2">
-      {bars.map((b) => (
-        <div key={b.label} className="flex-1 flex flex-col items-center gap-1">
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 112, paddingTop: 8 }}>
+      {bars.map((b, i) => (
+        <div key={b.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
           <div
-            className={`w-full rounded-t-lg ${b.color} opacity-80 transition-all`}
-            style={{ height: `${b.val}%` }}
+            style={{
+              width: '100%',
+              borderRadius: '6px 6px 0 0',
+              height: `${b.val}%`,
+              background: `rgba(37,99,235,${0.4 + i * 0.12})`,
+              transition: 'all 0.3s',
+            }}
           />
-          <span className="text-[10px] text-gray-400">{b.label}</span>
+          <span style={{ fontSize: 9, color: 'rgba(26,42,58,0.4)' }}>{b.label}</span>
         </div>
       ))}
     </div>
@@ -69,20 +82,20 @@ const TrendChart = () => (
   <svg viewBox="0 0 340 90" className="w-full h-24" preserveAspectRatio="none">
     <defs>
       <linearGradient id="tc" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.25" />
-        <stop offset="100%" stopColor="#14b8a6" stopOpacity="0" />
+        <stop offset="0%" stopColor="#2563eb" stopOpacity="0.18" />
+        <stop offset="100%" stopColor="#2563eb" stopOpacity="0" />
       </linearGradient>
     </defs>
     <path
       d="M0 70 C20 65 30 55 50 50 S80 35 100 38 S140 20 170 18 S210 30 230 28 S270 15 300 12 S330 18 340 14"
-      fill="none" stroke="#14b8a6" strokeWidth="2.5" strokeLinecap="round"
+      fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round"
     />
     <path
       d="M0 70 C20 65 30 55 50 50 S80 35 100 38 S140 20 170 18 S210 30 230 28 S270 15 300 12 S330 18 340 14 L340 90 L0 90Z"
       fill="url(#tc)"
     />
-    <circle cx="170" cy="18" r="5" fill="#14b8a6" />
-    <rect x="148" y="4" width="44" height="18" rx="9" fill="#0f766e" />
+    <circle cx="170" cy="18" r="5" fill="#2563eb" />
+    <rect x="148" y="4" width="44" height="18" rx="9" fill="#1d4ed8" />
     <text x="170" y="16" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">Peak</text>
   </svg>
 );
@@ -90,40 +103,58 @@ const TrendChart = () => (
 /* ─── donut-style distribution ─── */
 const DistChart = () => (
   <svg viewBox="0 0 120 120" className="w-28 h-28">
-    <circle cx="60" cy="60" r="44" fill="none" stroke="#f1f5f9" strokeWidth="16" />
-    <circle cx="60" cy="60" r="44" fill="none" stroke="#14b8a6" strokeWidth="16"
+    <circle cx="60" cy="60" r="44" fill="none" stroke="rgba(26,42,58,0.07)" strokeWidth="16" />
+    <circle cx="60" cy="60" r="44" fill="none" stroke="#2563eb" strokeWidth="16"
       strokeDasharray="110 167" strokeDashoffset="-20" strokeLinecap="round" />
     <circle cx="60" cy="60" r="44" fill="none" stroke="#f97316" strokeWidth="16"
       strokeDasharray="55 222" strokeDashoffset="-130" strokeLinecap="round" />
     <circle cx="60" cy="60" r="44" fill="none" stroke="#ef4444" strokeWidth="16"
       strokeDasharray="32 245" strokeDashoffset="-185" strokeLinecap="round" />
-    <text x="60" y="56" textAnchor="middle" fill="#111827" fontSize="16" fontWeight="bold">92%</text>
-    <text x="60" y="70" textAnchor="middle" fill="#6b7280" fontSize="8">Accuracy</text>
+    <text x="60" y="56" textAnchor="middle" fill="#1a2a3a" fontSize="16" fontWeight="bold">92%</text>
+    <text x="60" y="70" textAnchor="middle" fill="rgba(26,42,58,0.45)" fontSize="8">Accuracy</text>
   </svg>
 );
 
 /* ═══════════════════════════════════════════
-   SIDEBAR NAV ITEM
+   SIDEBAR NAV ITEM — full pill, Explore Categories style
 ═══════════════════════════════════════════ */
 const NavItem = ({ icon, label, view, activeView, onClick, badge }) => {
   const active = activeView === view;
   return (
     <button
       onClick={() => onClick(view)}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-        active
-          ? 'bg-teal-50 text-teal-600'
-          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-      }`}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 16,
+        padding: '13px 20px',
+        borderRadius: 999,
+        background: 'rgba(255,255,255,0.88)',
+        border: active ? '1.5px solid rgba(26,42,58,0.18)' : '1.5px solid rgba(255,255,255,0.6)',
+        color: '#1a2a3a',
+        fontSize: 15, fontWeight: 500,
+        cursor: 'pointer', textAlign: 'left', width: '100%',
+        transition: 'all 0.15s',
+        boxShadow: active ? '0 4px 16px rgba(26,42,58,0.12)' : '0 2px 8px rgba(26,42,58,0.06)',
+        letterSpacing: '-0.01em',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = 'rgba(255,255,255,0.98)';
+        e.currentTarget.style.boxShadow = '0 4px 16px rgba(26,42,58,0.12)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = 'rgba(255,255,255,0.88)';
+        e.currentTarget.style.boxShadow = active ? '0 4px 16px rgba(26,42,58,0.12)' : '0 2px 8px rgba(26,42,58,0.06)';
+      }}
     >
-      <span className={`w-5 h-5 flex-shrink-0 ${active ? 'text-teal-600' : 'text-gray-400'}`}>
+      <span style={{ width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#1a2a3a' }}>
         {icon}
       </span>
-      <span className="flex-1 text-left">{label}</span>
-      {badge && (
-        <span className="w-5 h-5 rounded-full bg-teal-500 text-white text-[10px] flex items-center justify-center">
+      <span style={{ flex: 1 }}>{label}</span>
+      {badge ? (
+        <span style={{ minWidth: 20, height: 20, borderRadius: 999, background: '#2563eb', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 5px' }}>
           {badge}
         </span>
+      ) : (
+        <span style={{ fontSize: 20, lineHeight: 1, fontWeight: 300, color: 'rgba(26,42,58,0.4)' }}>›</span>
       )}
     </button>
   );
@@ -151,28 +182,28 @@ const Icons = {
    METRIC CARD
 ═══════════════════════════════════════════ */
 const MetricCard = ({ title, value, sub1, sub2, sub1Label, sub2Label, trend, trendVal, chart }) => (
-  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between gap-3">
-    <div className="flex items-start justify-between">
+  <div style={{ ...glass, padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 12 }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
       <div>
-        <p className="text-xs text-gray-400 mb-1">{title}</p>
-        <p className="text-3xl font-bold text-gray-900">{value}</p>
+        <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)', marginBottom: 4 }}>{title}</p>
+        <p style={{ fontSize: 28, fontWeight: 700, color: '#1a2a3a' }}>{value}</p>
       </div>
-      <div className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400">
+      <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(37,99,235,0.07)', border: '0.5px solid rgba(37,99,235,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
         {chart}
       </div>
     </div>
-    <div className="flex items-center justify-between text-xs text-gray-400">
-      <span>{sub1Label} <span className="font-medium text-gray-700">{sub1}</span></span>
-      <span>{sub2Label} <span className="font-medium text-gray-700">{sub2}</span></span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: 'rgba(26,42,58,0.45)' }}>
+      <span>{sub1Label} <span style={{ fontWeight: 600, color: '#1a2a3a' }}>{sub1}</span></span>
+      <span>{sub2Label} <span style={{ fontWeight: 600, color: '#1a2a3a' }}>{sub2}</span></span>
     </div>
     <div>
       {trendVal && (
-        <div className={`flex items-center gap-1 text-xs font-medium ${trend === 'up' ? 'text-emerald-500' : 'text-orange-500'} mb-1`}>
-          <span className="w-3 h-3">{trend === 'up' ? Icons.chevUp : Icons.chevDn}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, color: trend === 'up' ? '#16a34a' : '#f97316', marginBottom: 4 }}>
+          <span style={{ width: 12, height: 12 }}>{trend === 'up' ? Icons.chevUp : Icons.chevDn}</span>
           <span>{trendVal}</span>
         </div>
       )}
-      <div className="h-8">{trend === 'up' ? <SparkUp /> : <SparkDown />}</div>
+      <div style={{ height: 32 }}>{trend === 'up' ? <SparkUp /> : <SparkDown />}</div>
     </div>
   </div>
 );
@@ -181,12 +212,10 @@ const MetricCard = ({ title, value, sub1, sub2, sub1Label, sub2Label, trend, tre
    OVERVIEW VIEW
 ═══════════════════════════════════════════ */
 const OverviewView = ({ statistics, appointments, loading }) => {
-  const avatarColors = ['bg-teal-200', 'bg-blue-200', 'bg-purple-200', 'bg-orange-200', 'bg-emerald-200', 'bg-pink-200'];
-
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* ── top metrics ── */}
-      <div className="grid grid-cols-4 gap-5">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
         <MetricCard
           title="Total Patients"
           value={statistics?.totalPatients || '—'}
@@ -234,28 +263,28 @@ const OverviewView = ({ statistics, appointments, loading }) => {
       </div>
 
       {/* ── middle row ── */}
-      <div className="grid grid-cols-[1fr_1.6fr_1fr] gap-5">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', gap: 16 }}>
 
         {/* Diagnosis Trends */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-start justify-between mb-1">
+        <div style={{ ...glass, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
             <div>
-              <p className="text-sm font-semibold text-gray-800">Diagnosis Trends</p>
-              <p className="text-xs text-gray-400">Weekly case distribution</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a' }}>Diagnosis Trends</p>
+              <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)' }}>Weekly case distribution</p>
             </div>
-            <button className="w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all">
-              <span className="w-4 h-4">{Icons.arrow}</span>
+            <button style={{ width: 28, height: 28, borderRadius: 10, background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(26,42,58,0.4)', cursor: 'pointer' }}>
+              <span style={{ width: 14, height: 14 }}>{Icons.arrow}</span>
             </button>
           </div>
-          <div className="flex gap-6 mb-3">
+          <div style={{ display: 'flex', gap: 20, marginBottom: 12 }}>
             <div>
-              <p className="text-xs text-gray-400">This week</p>
-              <p className="text-2xl font-bold text-gray-900">{appointments.length || '—'}</p>
-              <p className="text-xs text-orange-400 flex items-center gap-0.5"><span className="w-3 h-3">{Icons.chevDn}</span> 2.1%</p>
+              <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)' }}>This week</p>
+              <p style={{ fontSize: 22, fontWeight: 700, color: '#1a2a3a' }}>{appointments.length || '—'}</p>
+              <p style={{ fontSize: 11, color: '#f97316', display: 'flex', alignItems: 'center', gap: 2 }}><span style={{ width: 12, height: 12 }}>{Icons.chevDn}</span> 2.1%</p>
             </div>
-            <div className="flex flex-col gap-1.5 self-end pb-1">
-              <span className="flex items-center gap-1.5 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-teal-500 inline-block"/>Completed</span>
-              <span className="flex items-center gap-1.5 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-orange-400 inline-block"/>Pending</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'flex-end', paddingBottom: 4 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'rgba(26,42,58,0.45)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563eb', display: 'inline-block' }}/>Completed</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'rgba(26,42,58,0.45)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f97316', display: 'inline-block' }}/>Pending</span>
             </div>
           </div>
           <TrendChart />
@@ -263,15 +292,17 @@ const OverviewView = ({ statistics, appointments, loading }) => {
 
         {/* Brain Model — center, full card */}
         <div
-          className="rounded-2xl overflow-hidden shadow-sm border border-gray-100"
           style={{
-            background: 'radial-gradient(ellipse at 50% 40%, #ccfbf1 0%, #d1fae5 35%, #f0fdf4 70%, #f8fafc 100%)',
+            borderRadius: 20,
+            overflow: 'hidden',
+            border: '0.5px solid rgba(255,255,255,0.75)',
+            background: 'radial-gradient(ellipse at 50% 40%, #dbeafe 0%, #ede9fe 40%, #f0f9ff 70%, rgba(255,255,255,0.6) 100%)',
             minHeight: 280,
           }}
         >
           <Suspense fallback={
-            <div className="w-full h-full flex items-center justify-center" style={{ minHeight: 280 }}>
-              <div className="w-20 h-20 rounded-full bg-teal-100 animate-pulse" />
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 280 }}>
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(37,99,235,0.12)', animation: 'pulse 2s infinite' }} />
             </div>
           }>
             <BrainCanvasMini />
@@ -279,30 +310,30 @@ const OverviewView = ({ statistics, appointments, loading }) => {
         </div>
 
         {/* Prediction Distribution */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-start justify-between mb-4">
+        <div style={{ ...glass, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
-              <p className="text-sm font-semibold text-gray-800">Class Distribution</p>
-              <p className="text-xs text-emerald-500 flex items-center gap-1"><span className="w-3 h-3">{Icons.chevUp}</span> Model accuracy</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a' }}>Class Distribution</p>
+              <p style={{ fontSize: 11, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12 }}>{Icons.chevUp}</span> Model accuracy</p>
             </div>
-            <button className="w-7 h-7 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all">
-              <span className="w-4 h-4">{Icons.arrow}</span>
+            <button style={{ width: 28, height: 28, borderRadius: 10, background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(26,42,58,0.4)', cursor: 'pointer' }}>
+              <span style={{ width: 14, height: 14 }}>{Icons.arrow}</span>
             </button>
           </div>
-          <div className="flex flex-col items-center gap-4">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <DistChart />
-            <div className="w-full space-y-2">
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
-                { label: 'CN — Normal',    pct: 40, color: 'bg-teal-500' },
-                { label: 'MCI — Impaired', pct: 35, color: 'bg-orange-400' },
-                { label: 'Dementia',       pct: 25, color: 'bg-red-400' },
+                { label: 'CN — Normal',    pct: 40, color: '#2563eb' },
+                { label: 'MCI — Impaired', pct: 35, color: '#f97316' },
+                { label: 'Dementia',       pct: 25, color: '#ef4444' },
               ].map((d) => (
                 <div key={d.label}>
-                  <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'rgba(26,42,58,0.5)', marginBottom: 3 }}>
                     <span>{d.label}</span><span>{d.pct}%</span>
                   </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div className={`h-full ${d.color} rounded-full`} style={{ width: `${d.pct}%` }} />
+                  <div style={{ height: 6, background: 'rgba(26,42,58,0.07)', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: d.color, borderRadius: 999, width: `${d.pct}%` }} />
                   </div>
                 </div>
               ))}
@@ -312,86 +343,86 @@ const OverviewView = ({ statistics, appointments, loading }) => {
       </div>
 
       {/* ── bottom row ── */}
-      <div className="grid grid-cols-[1.8fr_1fr] gap-5">
+      <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: 16 }}>
 
         {/* Patient Demographics */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <div className="flex items-start justify-between mb-1">
+        <div style={{ ...glass, padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
             <div>
-              <p className="text-sm font-semibold text-gray-800">Patient Demographics</p>
-              <p className="text-xs text-gray-400">{statistics?.totalPatients || '—'} Total Patients</p>
-              <p className="text-xs text-orange-400 mt-0.5 flex items-center gap-0.5"><span className="w-3 h-3">{Icons.chevDn}</span> 3.5%</p>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a' }}>Patient Demographics</p>
+              <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)' }}>{statistics?.totalPatients || '—'} Total Patients</p>
+              <p style={{ fontSize: 11, color: '#f97316', marginTop: 2, display: 'flex', alignItems: 'center', gap: 2 }}><span style={{ width: 12, height: 12 }}>{Icons.chevDn}</span> 3.5%</p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-3">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', gap: 16 }}>
                 {['18–30', '31–45', '46–60', '61–70', '70+'].map((ag, i) => {
                   const counts = [220, 195, 175, 130, 100];
                   return (
-                    <div key={ag} className="text-center">
-                      <p className="text-xs font-bold text-gray-700">{counts[i]}</p>
-                      <p className="text-[9px] text-gray-400">{ag}</p>
+                    <div key={ag} style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: 11, fontWeight: 700, color: '#1a2a3a' }}>{counts[i]}</p>
+                      <p style={{ fontSize: 9, color: 'rgba(26,42,58,0.4)' }}>{ag}</p>
                     </div>
                   );
                 })}
               </div>
-              <button className="w-7 h-7 rounded-xl bg-teal-500 text-white flex items-center justify-center hover:bg-teal-600 transition-all ml-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
+              <button style={{ width: 28, height: 28, borderRadius: 10, background: '#2563eb', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', cursor: 'pointer' }}>
+                <svg style={{ width: 14, height: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/></svg>
               </button>
             </div>
           </div>
           <MiniBarChart />
-          <div className="flex gap-4 mt-2 flex-wrap">
+          <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
             {[
-              { label: '70+: 10.0%', color: 'bg-teal-300' },
-              { label: '18–30: 25.0%', color: 'bg-teal-400' },
-              { label: '51–70: 30.0%', color: 'bg-emerald-400' },
-              { label: '31–50: 35.0%', color: 'bg-emerald-500' },
+              { label: '70+: 10.0%', color: 'rgba(37,99,235,0.4)' },
+              { label: '18–30: 25.0%', color: 'rgba(37,99,235,0.55)' },
+              { label: '51–70: 30.0%', color: 'rgba(37,99,235,0.7)' },
+              { label: '31–50: 35.0%', color: 'rgba(37,99,235,0.85)' },
             ].map((l) => (
-              <span key={l.label} className="flex items-center gap-1.5 text-[10px] text-gray-400">
-                <span className={`w-2 h-2 rounded-sm ${l.color} inline-block`} />{l.label}
+              <span key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: 'rgba(26,42,58,0.4)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, display: 'inline-block' }} />{l.label}
               </span>
             ))}
           </div>
         </div>
 
         {/* Ongoing + Awaiting */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-2 h-2 rounded-full bg-teal-400 inline-block" />
-              <p className="text-xs font-semibold text-gray-700">Ongoing Treatments</p>
+        <div style={{ ...glass, padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#2563eb', display: 'inline-block' }} />
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#1a2a3a' }}>Ongoing Treatments</p>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-              <div className="h-full bg-gradient-to-r from-teal-400 to-emerald-400 rounded-full" style={{ width: '67%' }} />
+            <div style={{ height: 6, background: 'rgba(26,42,58,0.07)', borderRadius: 999, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{ height: '100%', background: 'linear-gradient(90deg, #93c5fd, #2563eb)', borderRadius: 999, width: '67%' }} />
             </div>
-            <p className="text-xs text-gray-400">
-              <span className="font-bold text-gray-700">{statistics?.completedAppointments || 8}</span> active cases tracked
+            <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)' }}>
+              <span style={{ fontWeight: 700, color: '#1a2a3a' }}>{statistics?.completedAppointments || 8}</span> active cases tracked
             </p>
-            <div className="flex -space-x-2 mt-3">
-              {avatarColors.slice(0, 4).map((c, i) => (
-                <div key={i} className={`w-7 h-7 rounded-full ${c} border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600`}>
-                  {String.fromCharCode(65 + i)}
+            <div style={{ display: 'flex', marginTop: 12 }}>
+              {['A','B','C','D'].map((l, i) => (
+                <div key={i} style={{ width: 28, height: 28, borderRadius: '50%', background: ['#bfdbfe','#ddd6fe','#fbcfe8','#bbf7d0'][i], border: '2px solid rgba(255,255,255,0.8)', marginLeft: i > 0 ? -8 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#1a2a3a' }}>
+                  {l}
                 </div>
               ))}
-              <div className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] text-gray-400">+4</div>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(26,42,58,0.07)', border: '2px solid rgba(255,255,255,0.8)', marginLeft: -8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'rgba(26,42,58,0.4)' }}>+4</div>
             </div>
           </div>
 
-          <div className="border-t border-gray-50 pt-4 flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
-              <p className="text-xs font-semibold text-gray-700">Awaiting Follow-up</p>
+          <div style={{ borderTop: '0.5px solid rgba(26,42,58,0.06)', paddingTop: 16, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f97316', display: 'inline-block' }} />
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#1a2a3a' }}>Awaiting Follow-up</p>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-2">
-              <div className="h-full bg-gradient-to-r from-orange-300 to-orange-400 rounded-full" style={{ width: '33%' }} />
+            <div style={{ height: 6, background: 'rgba(26,42,58,0.07)', borderRadius: 999, overflow: 'hidden', marginBottom: 8 }}>
+              <div style={{ height: '100%', background: 'linear-gradient(90deg, #fed7aa, #f97316)', borderRadius: 999, width: '33%' }} />
             </div>
-            <p className="text-xs text-gray-400">
-              <span className="font-bold text-gray-700">4</span> patients need review
+            <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)' }}>
+              <span style={{ fontWeight: 700, color: '#1a2a3a' }}>4</span> patients need review
             </p>
-            <div className="flex -space-x-2 mt-3">
-              {avatarColors.slice(2, 5).map((c, i) => (
-                <div key={i} className={`w-7 h-7 rounded-full ${c} border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600`}>
-                  {String.fromCharCode(69 + i)}
+            <div style={{ display: 'flex', marginTop: 12 }}>
+              {['E','F','G'].map((l, i) => (
+                <div key={i} style={{ width: 28, height: 28, borderRadius: '50%', background: ['#fbcfe8','#bbf7d0','#ddd6fe'][i], border: '2px solid rgba(255,255,255,0.8)', marginLeft: i > 0 ? -8 : 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#1a2a3a' }}>
+                  {l}
                 </div>
               ))}
             </div>
@@ -415,6 +446,14 @@ function DoctorManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
+  const [aiFullscreen, setAiFullscreen] = useState(false);
+  const [aiPhase, setAiPhase] = useState('input'); // 'input' | 'results'
+
+  const sidebarRef  = useRef(null);
+  const navListRef  = useRef(null);
+  const mainRef     = useRef(null);
+  const contentRef  = useRef(null);
+  const aiOverlayRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -426,6 +465,79 @@ function DoctorManagement() {
     fetchAppointments();
     fetchStatistics(u.id);
   }, [navigate]);
+
+  /* ── mount: sidebar + main entrance ── */
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.fromTo(sidebarRef.current,
+        { x: -80, opacity: 0 },
+        { x: 0, opacity: 1, duration: 1.1, ease: 'power3.out' }
+      );
+      gsap.fromTo(
+        navListRef.current?.querySelectorAll('button') ?? [],
+        { x: -32, opacity: 0 },
+        { x: 0, opacity: 1, stagger: 0.1, duration: 0.6, ease: 'power2.out', delay: 0.5 }
+      );
+      gsap.fromTo(mainRef.current,
+        { opacity: 0, y: 36 },
+        { opacity: 1, y: 0, duration: 0.9, delay: 0.3, ease: 'power2.out' }
+      );
+    });
+    return () => ctx.revert();
+  }, []);
+
+  /* ── view switch: content fade-slide ── */
+  useEffect(() => {
+    if (!contentRef.current) return;
+    if (activeView === 'ai-diagnosis') return; // handled by cinematic transition
+    gsap.fromTo(contentRef.current,
+      { opacity: 0, y: 22 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
+    );
+  }, [activeView]);
+
+  /* ── cinematic enter: sidebar out-left, main out-right, then show overlay ── */
+  const enterAIFullscreen = () => {
+    const tl = gsap.timeline();
+    tl.to(sidebarRef.current, {
+      x: -340, opacity: 0, duration: 0.52, ease: 'power2.inOut',
+    }, 0);
+    tl.to(mainRef.current, {
+      x: 120, opacity: 0, duration: 0.52, ease: 'power2.inOut',
+    }, 0);
+    tl.call(() => {
+      // Show overlay — entrance animation handled by useEffect
+      setAiFullscreen(true);
+    });
+  };
+
+  /* ── cinematic exit: overlay out, then slide dashboard back in ── */
+  const exitAIFullscreen = () => {
+    if (aiOverlayRef.current) {
+      gsap.to(aiOverlayRef.current, {
+        opacity: 0, y: 30, duration: 0.4, ease: 'power2.in',
+        onComplete: () => {
+          setAiFullscreen(false);
+          setActiveView('overview');
+          // Restore dashboard positions and animate them back in
+          gsap.set(sidebarRef.current, { x: -340, opacity: 0 });
+          gsap.set(mainRef.current, { x: 120, opacity: 0 });
+          gsap.to(sidebarRef.current, { x: 0, opacity: 1, duration: 0.6, ease: 'power3.out', delay: 0.05 });
+          gsap.to(mainRef.current, { x: 0, opacity: 1, duration: 0.6, ease: 'power3.out', delay: 0.05 });
+        },
+      });
+    }
+  };
+
+  /* AI overlay entrance animation (after React renders it) */
+  useEffect(() => {
+    if (aiFullscreen && aiOverlayRef.current) {
+      gsap.fromTo(aiOverlayRef.current,
+        { opacity: 0, y: 40 },
+        { opacity: 1, y: 0, duration: 0.65, ease: 'power3.out' }
+      );
+    }
+  }, [aiFullscreen]);
 
   const fetchAppointments = async () => {
     try {
@@ -513,24 +625,44 @@ function DoctorManagement() {
     { view: 'ai-diagnosis',  label: 'AI Diagnosis',    icon: Icons.ai },
   ];
 
-  return (
-    <div className="min-h-screen w-full bg-[#e8eaed] p-4 flex items-start justify-center">
-      <div
-        className="w-full max-w-[1600px] flex rounded-3xl overflow-hidden shadow-2xl"
-        style={{ minHeight: 'calc(100vh - 2rem)' }}
-      >
-        {/* ══════════ SIDEBAR ══════════ */}
-        <aside className="w-60 flex-shrink-0 bg-white flex flex-col py-6 px-4 gap-2 rounded-r-3xl">
-          {/* Logo */}
-          <div className="flex items-center gap-2.5 px-2 mb-4">
-            <div>
-              <p className="text-sm font-bold text-gray-900 leading-none">ALZ ForeSight</p>
-              <p className="text-[10px] text-gray-400 mt-0.5">For Doctors</p>
-            </div>
-          </div>
+  const statusColor = (s) => s === 'completed' ? '#16a34a' : s === 'current' ? '#2563eb' : '#f97316';
+  const statusBg = (s) => s === 'completed' ? 'rgba(22,163,74,0.08)' : s === 'current' ? 'rgba(37,99,235,0.08)' : 'rgba(249,115,22,0.08)';
 
-          {/* Nav */}
-          <nav className="flex flex-col gap-0.5 flex-1">
+  return (
+    <div style={{ minHeight: '100vh', width: '100%', background: 'linear-gradient(135deg, #c5d5e8 0%, #d4c5e2 35%, #e8c5d0 70%, #c5d8e8 100%)', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+      {/* Atmospheric blobs */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'rgba(180,160,220,0.3)', top: -120, left: -100, filter: 'blur(80px)' }} />
+        <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'rgba(240,180,200,0.25)', top: 60, right: -80, filter: 'blur(70px)' }} />
+        <div style={{ position: 'absolute', width: 360, height: 360, borderRadius: '50%', background: 'rgba(160,200,230,0.25)', bottom: -60, left: '30%', filter: 'blur(70px)' }} />
+      </div>
+
+        {/* ══════════ FLOATING NAV PANEL ══════════ */}
+        <aside ref={sidebarRef} style={{
+          position: 'fixed',
+          left: 24, top: '50%', transform: 'translateY(-50%)',
+          zIndex: 100,
+          width: 320,
+          background: 'rgba(200,205,235,0.55)',
+          backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)',
+          border: '1px solid rgba(255,255,255,0.45)',
+          borderRadius: 28,
+          boxShadow: '0 16px 56px rgba(80,80,140,0.18), 0 2px 12px rgba(80,80,140,0.1)',
+          display: 'flex', flexDirection: 'column',
+          padding: '28px 18px',
+          maxHeight: 'calc(100vh - 48px)',
+          overflowY: 'auto',
+        }}>
+          {/* Title */}
+          <p style={{
+            fontSize: 12, fontWeight: 800, letterSpacing: '0.13em',
+            textTransform: 'uppercase', textAlign: 'center',
+            color: '#1a2a3a', marginBottom: 22,
+            fontFamily: 'ui-monospace, "SF Mono", monospace',
+          }}>Navigation</p>
+
+          {/* Nav items */}
+          <div ref={navListRef} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {navItems.map((item) => (
               <NavItem
                 key={item.view}
@@ -538,147 +670,159 @@ function DoctorManagement() {
                 label={item.label}
                 icon={item.icon}
                 activeView={activeView}
-                onClick={setActiveView}
+                onClick={(v) => {
+                  if (v === 'ai-diagnosis') {
+                    enterAIFullscreen();
+                  } else {
+                    setActiveView(v);
+                  }
+                }}
                 badge={item.badge}
               />
             ))}
-          </nav>
-
-          {/* Settings + Logout */}
-          <div className="flex flex-col gap-0.5 border-t border-gray-100 pt-3">
             <NavItem view="settings" label="Settings" icon={Icons.settings} activeView={activeView} onClick={setActiveView} />
+          </div>
+
+          {/* Divider + profile + logout */}
+          <div style={{ marginTop: 20, borderTop: '1px solid rgba(255,255,255,0.4)', paddingTop: 18 }}>
+            {/* Profile row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '0 4px' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0, background: 'linear-gradient(135deg, #93c5fd, #6366f1)' }}>
+                {user?.name?.[0]?.toUpperCase() || 'D'}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name || 'Doctor'}</p>
+                <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email || 'doctor@alzforesight.com'}</p>
+              </div>
+            </div>
+            {/* Logout */}
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-400 hover:bg-red-50 transition-all"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                width: '100%', padding: '11px 20px', borderRadius: 999,
+                background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(220,38,38,0.25)',
+                color: '#dc2626', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(254,226,226,0.9)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.7)'; }}
             >
-              <span className="w-5 h-5 flex-shrink-0">{Icons.logout}</span>
-              <span>Log Out</span>
-            </button>
-          </div>
-
-          {/* User profile card */}
-          <div className="mt-2 p-3 rounded-2xl bg-gray-50 border border-gray-100 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-teal-300 to-emerald-400 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-              {user?.name?.[0]?.toUpperCase() || 'D'}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-800 truncate">{user?.name || 'Doctor'}</p>
-              <p className="text-[10px] text-gray-400 truncate">{user?.email || 'doctor@alzforesight.com'}</p>
-            </div>
-          </div>
-
-          {/* Promo card */}
-          <div className="mt-2 p-4 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white overflow-hidden relative">
-            <div className="absolute -top-4 -right-4 w-16 h-16 bg-white/10 rounded-full" />
-            <div className="absolute -bottom-4 -left-2 w-12 h-12 bg-white/10 rounded-full" />
-            <p className="text-xs font-semibold mb-1 relative z-10">AI Update</p>
-            <p className="text-[10px] opacity-80 mb-3 relative z-10 leading-relaxed">XGBoost model improves diagnosis accuracy by 27%</p>
-            <button
-              onClick={() => setActiveView('ai-diagnosis')}
-              className="w-full py-1.5 bg-gray-900 text-white text-[11px] font-semibold rounded-xl hover:bg-gray-800 transition-all relative z-10"
-            >
-              Run Diagnosis
+              <span style={{ width: 15, height: 15, display: 'flex' }}>{Icons.logout}</span>
+              Log Out
             </button>
           </div>
         </aside>
 
         {/* ══════════ MAIN CONTENT ══════════ */}
-        <div className="flex-1 flex flex-col bg-transparent">
+        <div ref={mainRef} style={{ position: 'relative', zIndex: 1, marginLeft: 368, minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
 
           {/* ── HEADER ── */}
-          <div className="px-4 pt-4 flex-shrink-0">
-          <header className="h-14 bg-white rounded-2xl shadow-sm flex items-center gap-4 px-5">
-            {/* Search */}
-            <div className="relative flex-1 max-w-sm">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400">{Icons.search}</span>
-              <input
-                type="text"
-                placeholder="Search patients, appointments…"
-                className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-teal-300 transition-all"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 ml-auto">
-              {/* Notification */}
-              <button className="relative w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-all">
-                <span className="w-5 h-5">{Icons.bell}</span>
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-teal-400 rounded-full" />
-              </button>
-              {/* User icon */}
-              <button className="w-9 h-9 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-all">
-                <span className="w-5 h-5">{Icons.user}</span>
-              </button>
-              {/* Date pill */}
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-xl">
-                <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                <span className="text-xs text-gray-500 font-medium">
-                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
+          <div style={{ padding: '20px 20px 0' }}>
+            <header style={{ height: 56, borderRadius: 16, display: 'flex', alignItems: 'center', gap: 16, padding: '0 20px', background: 'rgba(255,255,255,0.78)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: '0.5px solid rgba(255,255,255,0.7)' }}>
+              {/* Search */}
+              <div style={{ position: 'relative', flex: 1, maxWidth: 380 }}>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 16, height: 16, color: 'rgba(26,42,58,0.35)' }}>{Icons.search}</span>
+                <input
+                  type="text"
+                  placeholder="Search patients, appointments…"
+                  style={{ width: '100%', paddingLeft: 36, paddingRight: 16, paddingTop: 8, paddingBottom: 8, borderRadius: 12, fontSize: 13, background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.08)', color: '#1a2a3a', outline: 'none', boxSizing: 'border-box' }}
+                />
               </div>
-              {/* Action button */}
-              <button
-                onClick={() => setActiveView('ai-diagnosis')}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-sm font-semibold rounded-xl transition-all shadow-sm"
-              >
-                <span className="w-4 h-4">{Icons.ai}</span>
-                Run AI Diagnosis
-              </button>
-            </div>
-          </header>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                {/* Notification */}
+                <button style={{ position: 'relative', width: 36, height: 36, borderRadius: 12, background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(26,42,58,0.5)', cursor: 'pointer' }}>
+                  <span style={{ width: 20, height: 20 }}>{Icons.bell}</span>
+                  <span style={{ position: 'absolute', top: 8, right: 8, width: 6, height: 6, background: '#2563eb', borderRadius: '50%' }} />
+                </button>
+                {/* User icon */}
+                <button style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(26,42,58,0.5)', cursor: 'pointer' }}>
+                  <span style={{ width: 20, height: 20 }}>{Icons.user}</span>
+                </button>
+                {/* Date pill */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 12, background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.07)' }}>
+                  <svg style={{ width: 14, height: 14, color: 'rgba(26,42,58,0.35)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(26,42,58,0.5)' }}>
+                    {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+                {/* Action button */}
+                <button
+                  onClick={enterAIFullscreen}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', color: '#fff', fontSize: 13, fontWeight: 600, borderRadius: 12, background: '#2563eb', border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#1d4ed8'}
+                  onMouseLeave={e => e.currentTarget.style.background = '#2563eb'}
+                >
+                  <span style={{ width: 16, height: 16 }}>{Icons.ai}</span>
+                  Run AI Diagnosis
+                </button>
+              </div>
+            </header>
           </div>
 
           {/* ── CONTENT AREA ── */}
-          <main className="flex-1 p-4 overflow-y-auto">
+          <main style={{ flex: 1, padding: '12px 20px 20px', overflowY: 'auto', background: 'transparent' }}>
+            <div ref={contentRef} style={{
+              background: 'rgba(200,205,235,0.55)',
+              backdropFilter: 'blur(28px)',
+              WebkitBackdropFilter: 'blur(28px)',
+              borderRadius: 28,
+              border: '1px solid rgba(255,255,255,0.45)',
+              boxShadow: '0 16px 56px rgba(80,80,140,0.18), 0 2px 12px rgba(80,80,140,0.1)',
+              padding: 28,
+              minHeight: 'calc(100vh - 112px)',
+            }}>
 
-            {/* ── OVERVIEW ── */}
-            {activeView === 'overview' && (
-              <>
-                <div className="mb-5">
-                  <h2 className="text-4xl font-bold text-gray-800">Overview</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Welcome back, Dr. {user?.name?.split(' ')[0] || 'Doctor'}</p>
-                </div>
-                <OverviewView statistics={statistics} appointments={appointments} loading={loading} />
-              </>
-            )}
+            {/* ── OVERVIEW — always mounted to keep 3D brain alive ── */}
+            <div style={{ display: activeView === 'overview' ? 'block' : 'none' }}>
+              <div style={{ marginBottom: 20 }}>
+                <h2 style={{ fontSize: 32, fontWeight: 700, color: '#1a2a3a' }}>Overview</h2>
+                <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>Welcome back, Dr. {user?.name?.split(' ')[0] || 'Doctor'}</p>
+              </div>
+              <OverviewView statistics={statistics} appointments={appointments} loading={loading} />
+            </div>
 
             {/* ── APPOINTMENTS ── */}
             {activeView === 'appointments' && (
               <>
-                <div className="mb-5">
-                  <h2 className="text-2xl font-bold text-gray-800">Appointments</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">{loading ? 'Loading…' : `${appointments.length} appointments found`}</p>
+                <div style={{ marginBottom: 20 }}>
+                  <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a2a3a' }}>Appointments</h2>
+                  <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>{loading ? 'Loading…' : `${appointments.length} appointments found`}</p>
                 </div>
-                <div className="grid grid-cols-[1fr_1.2fr] gap-4">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 16 }}>
                   {/* list */}
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-sm font-semibold text-gray-800">All Appointments</p>
-                      <button className="text-xs text-teal-500 hover:text-teal-600">Show all</button>
+                  <div style={{ ...glass, padding: 24 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a' }}>All Appointments</p>
+                      <button style={{ fontSize: 12, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Show all</button>
                     </div>
                     {loading ? (
-                      <div className="space-y-3">{[...Array(5)].map((_, i) => <div key={i} className="flex gap-3 items-center"><div className="w-9 h-9 rounded-full bg-gray-100 animate-pulse"/><div className="flex-1 space-y-1.5"><Sk w="w-32"/><Sk w="w-20" h="h-2"/></div></div>)}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{[...Array(5)].map((_, i) => <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}><div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(26,42,58,0.08)', animation: 'pulse 2s infinite' }}/><div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}><Sk w="w-32"/><Sk w="w-20" h="h-2"/></div></div>)}</div>
                     ) : error ? (
-                      <p className="text-sm text-red-400 py-8 text-center">{error}</p>
+                      <p style={{ fontSize: 13, color: '#ef4444', textAlign: 'center', padding: '32px 0' }}>{error}</p>
                     ) : (
-                      <div className="space-y-1.5">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                         {appointments.map((apt) => (
                           <div
                             key={apt.id}
                             onClick={() => setSelectedAppointment(apt)}
-                            className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all ${
-                              selectedAppointment?.id === apt.id
-                                ? 'bg-teal-50 border border-teal-100'
-                                : 'hover:bg-gray-50'
-                            }`}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 14, cursor: 'pointer', transition: 'all 0.15s',
+                              background: selectedAppointment?.id === apt.id ? 'rgba(37,99,235,0.08)' : 'transparent',
+                              border: selectedAppointment?.id === apt.id ? '0.5px solid rgba(37,99,235,0.15)' : '0.5px solid transparent',
+                            }}
+                            onMouseEnter={e => { if (selectedAppointment?.id !== apt.id) e.currentTarget.style.background = 'rgba(26,42,58,0.03)'; }}
+                            onMouseLeave={e => { if (selectedAppointment?.id !== apt.id) e.currentTarget.style.background = 'transparent'; }}
                           >
-                            <p className="text-xs text-gray-400 w-14 flex-shrink-0">{apt.time}</p>
-                            <div className={`w-2 h-2 rounded-full flex-shrink-0 ${apt.status === 'completed' ? 'bg-emerald-400' : apt.status === 'current' ? 'bg-teal-500' : 'bg-orange-400'}`} />
-                            <img src={apt.avatar} alt={apt.patientName} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-800 truncate">{apt.patientName}</p>
-                              <p className="text-xs text-gray-400 truncate">{apt.condition}</p>
+                            <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)', width: 56, flexShrink: 0 }}>{apt.time}</p>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: statusColor(apt.status) }} />
+                            <img src={apt.avatar} alt={apt.patientName} style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 500, color: '#1a2a3a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apt.patientName}</p>
+                              <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apt.condition}</p>
                             </div>
-                            <div className={`px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ${apt.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : apt.status === 'current' ? 'bg-teal-50 text-teal-600' : 'bg-orange-50 text-orange-500'}`}>
+                            <div style={{ padding: '3px 10px', borderRadius: 999, fontSize: 10, fontWeight: 600, flexShrink: 0, background: statusBg(apt.status), color: statusColor(apt.status) }}>
                               {apt.status}
                             </div>
                           </div>
@@ -687,55 +831,54 @@ function DoctorManagement() {
                     )}
                   </div>
                   {/* detail */}
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                    <p className="text-sm font-semibold text-gray-800 mb-3">Ongoing Appointment</p>
+                  <div style={{ ...glass, padding: 24 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a', marginBottom: 12 }}>Ongoing Appointment</p>
                     {selectedAppointment && currentPatient ? (
-                      <div className="grid grid-cols-[1fr_1.2fr] gap-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-3 mb-2">
-                            <img src={selectedAppointment.avatar} alt={currentPatient.name} className="w-10 h-10 rounded-full object-cover" />
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: 16 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                            <img src={selectedAppointment.avatar} alt={currentPatient.name} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
                             <div>
-                              <p className="text-sm font-semibold text-gray-800">{currentPatient.name}</p>
-                              <p className="text-xs text-gray-400">{currentPatient.condition}</p>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a' }}>{currentPatient.name}</p>
+                              <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)' }}>{currentPatient.condition}</p>
                             </div>
                           </div>
-                          {[
-                            ['Age', currentPatient.age],
-                            ['Time', currentPatient.time],
-                            ['MRN', currentPatient.mrn],
-                            ['Type', currentPatient.type],
-                          ].map(([k, v]) => (
-                            <div key={k} className="flex justify-between text-xs border-b border-gray-50 pb-1.5">
-                              <span className="text-gray-400">{k}</span>
-                              <span className="text-gray-700 font-medium">{v}</span>
+                          {[['Age', currentPatient.age],['Time', currentPatient.time],['MRN', currentPatient.mrn],['Type', currentPatient.type]].map(([k, v]) => (
+                            <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, borderBottom: '0.5px solid rgba(26,42,58,0.05)', paddingBottom: 6 }}>
+                              <span style={{ color: 'rgba(26,42,58,0.45)' }}>{k}</span>
+                              <span style={{ color: '#1a2a3a', fontWeight: 600 }}>{v}</span>
                             </div>
                           ))}
-                          <div className="mt-2">
-                            <p className="text-xs text-gray-400 mb-1">Special Note</p>
-                            <p className="text-xs text-gray-600 leading-relaxed">{currentPatient.specialNote}</p>
+                          <div style={{ marginTop: 8 }}>
+                            <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)', marginBottom: 4 }}>Special Note</p>
+                            <p style={{ fontSize: 12, color: '#1a2a3a', lineHeight: 1.6 }}>{currentPatient.specialNote}</p>
                           </div>
-                          <div className="p-3 rounded-xl bg-gray-50 border border-gray-100">
-                            <div className="flex justify-between items-center mb-1">
-                              <span className="text-xs text-gray-500">Fee — {currentPatient.fee}</span>
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${currentPatient.paymentStatus === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-500'}`}>{currentPatient.paymentStatus}</span>
+                          <div style={{ padding: 12, borderRadius: 14, background: 'rgba(26,42,58,0.03)', border: '0.5px solid rgba(26,42,58,0.06)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                              <span style={{ fontSize: 12, color: 'rgba(26,42,58,0.5)' }}>Fee — {currentPatient.fee}</span>
+                              <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: currentPatient.paymentStatus === 'Paid' ? 'rgba(22,163,74,0.08)' : 'rgba(249,115,22,0.08)', color: currentPatient.paymentStatus === 'Paid' ? '#16a34a' : '#f97316' }}>{currentPatient.paymentStatus}</span>
                             </div>
                           </div>
                         </div>
-                        <div className="flex flex-col">
-                          <p className="text-xs text-gray-400 mb-2">Consultation Notes</p>
-                          <div className="bg-gray-50 rounded-xl p-3 flex-1 overflow-y-auto mb-3 border border-gray-100">
-                            <p className="text-xs text-gray-600 leading-relaxed">Patient presents with cognitive assessment scores requiring evaluation. Recommend follow-up neurological testing and review of current medication regimen.</p>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.45)', marginBottom: 8 }}>Consultation Notes</p>
+                          <div style={{ background: 'rgba(26,42,58,0.03)', borderRadius: 14, padding: 12, flex: 1, overflowY: 'auto', marginBottom: 12, border: '0.5px solid rgba(26,42,58,0.06)' }}>
+                            <p style={{ fontSize: 12, color: '#1a2a3a', lineHeight: 1.7 }}>Patient presents with cognitive assessment scores requiring evaluation. Recommend follow-up neurological testing and review of current medication regimen.</p>
                           </div>
-                          <div className="flex gap-2">
+                          <div style={{ display: 'flex', gap: 8 }}>
                             <button
                               onClick={() => handleUpdateAppointment(selectedAppointment.id, { status: 'rescheduled' })}
-                              className="flex-1 py-2.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-all"
+                              style={{ flex: 1, padding: '10px 0', borderRadius: 12, border: '0.5px solid rgba(26,42,58,0.12)', fontSize: 12, fontWeight: 500, color: 'rgba(26,42,58,0.6)', background: 'transparent', cursor: 'pointer', transition: 'background 0.15s' }}
+                              onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,42,58,0.04)'}
+                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                             >
                               Reschedule
                             </button>
                             <button
                               onClick={() => handleUpdateAppointment(selectedAppointment.id, { status: 'completed' })}
-                              className="flex-1 py-2.5 rounded-xl bg-teal-500 text-white text-xs font-semibold hover:bg-teal-600 transition-all"
+                              style={{ flex: 1, padding: '10px 0', borderRadius: 12, background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'background 0.15s' }}
+                              onMouseEnter={e => e.currentTarget.style.background = '#1d4ed8'}
+                              onMouseLeave={e => e.currentTarget.style.background = '#2563eb'}
                             >
                               Finish
                             </button>
@@ -743,10 +886,10 @@ function DoctorManagement() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center h-64 text-gray-300">
-                        <div className="text-center">
-                          <svg className="w-12 h-12 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                          <p className="text-sm">Select an appointment</p>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 256 }}>
+                        <div style={{ textAlign: 'center', color: 'rgba(26,42,58,0.2)' }}>
+                          <svg style={{ width: 48, height: 48, margin: '0 auto 8px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                          <p style={{ fontSize: 13 }}>Select an appointment</p>
                         </div>
                       </div>
                     )}
@@ -758,27 +901,35 @@ function DoctorManagement() {
             {/* ── PATIENTS ── */}
             {activeView === 'patients' && (
               <>
-                <div className="mb-5">
-                  <h2 className="text-2xl font-bold text-gray-800">Patient Management</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">All registered patients</p>
+                <div style={{ marginBottom: 20 }}>
+                  <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a2a3a' }}>Patient Management</h2>
+                  <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>All registered patients</p>
                 </div>
                 {loading ? (
-                  <div className="grid grid-cols-1 gap-3">{[...Array(4)].map((_, i) => <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex gap-4 items-center"><div className="w-14 h-14 rounded-full bg-gray-100 animate-pulse"/><div className="flex-1 space-y-2"><Sk w="w-40"/><Sk w="w-24" h="h-2"/></div></div>)}</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{[...Array(4)].map((_, i) => <div key={i} style={{ ...glass, padding: 16, display: 'flex', gap: 16, alignItems: 'center' }}><div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(26,42,58,0.08)', animation: 'pulse 2s infinite' }}/><div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}><Sk w="w-40"/><Sk w="w-24" h="h-2"/></div></div>)}</div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     {appointments.map((apt) => (
-                      <div key={apt.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center gap-4 hover:border-teal-100 transition-all">
-                        <img src={apt.avatar} alt={apt.patientName} className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-800">{apt.patientName}</p>
-                          <p className="text-xs text-gray-400">MRN: {apt.patientDetails?.mrn || 'N/A'}</p>
-                          <p className="text-xs text-gray-400">{apt.patientDetails?.age || 'N/A'}</p>
+                      <div
+                        key={apt.id}
+                        style={{ ...glass, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.8)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.65)'}
+                      >
+                        <img src={apt.avatar} alt={apt.patientName} style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 14, fontWeight: 600, color: '#1a2a3a' }}>{apt.patientName}</p>
+                          <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)', marginTop: 2 }}>MRN: {apt.patientDetails?.mrn || 'N/A'}</p>
+                          <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)' }}>{apt.patientDetails?.age || 'N/A'}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-700">{apt.condition}</p>
-                          <p className={`text-xs mt-0.5 ${apt.patientDetails?.paymentStatus === 'Paid' ? 'text-emerald-500' : 'text-orange-400'}`}>{apt.patientDetails?.paymentStatus}</p>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: '#1a2a3a' }}>{apt.condition}</p>
+                          <p style={{ fontSize: 11, marginTop: 2, color: apt.patientDetails?.paymentStatus === 'Paid' ? '#16a34a' : '#f97316' }}>{apt.patientDetails?.paymentStatus}</p>
                         </div>
-                        <button className="px-4 py-2 bg-teal-500 hover:bg-teal-600 text-white text-xs font-semibold rounded-xl transition-all ml-2">
+                        <button style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, borderRadius: 12, border: 'none', cursor: 'pointer', marginLeft: 8, transition: 'background 0.15s' }}
+                          onMouseEnter={e => e.target.style.background = '#1d4ed8'}
+                          onMouseLeave={e => e.target.style.background = '#2563eb'}
+                        >
                           View
                         </button>
                       </div>
@@ -791,35 +942,41 @@ function DoctorManagement() {
             {/* ── CALENDAR ── */}
             {activeView === 'calendar' && (
               <>
-                <div className="mb-5">
-                  <h2 className="text-2xl font-bold text-gray-800">Calendar & Schedule</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Manage appointments</p>
+                <div style={{ marginBottom: 20 }}>
+                  <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a2a3a' }}>Calendar & Schedule</h2>
+                  <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>Manage appointments</p>
                 </div>
-                <div className="grid grid-cols-[500px_1fr] gap-5 items-start">
+                <div style={{ display: 'grid', gridTemplateColumns: '500px 1fr', gap: 20, alignItems: 'start' }}>
                   {/* calendar widget */}
-                  <div className="bg-white rounded-2xl p-7 shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-lg font-bold text-gray-900">December 2025</h3>
-                      <div className="flex gap-2">
-                        <button className="w-9 h-9 bg-gray-50 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-100 transition-all flex items-center justify-center">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-                        </button>
-                        <button className="w-9 h-9 bg-gray-50 border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-100 transition-all flex items-center justify-center">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
-                        </button>
+                  <div style={{ ...glass, padding: 28 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                      <h3 style={{ fontSize: 17, fontWeight: 700, color: '#1a2a3a' }}>December 2025</h3>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {['M15 19l-7-7 7-7', 'M9 5l7 7-7 7'].map((d, i) => (
+                          <button key={i} style={{ width: 36, height: 36, background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.1)', color: 'rgba(26,42,58,0.5)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                            <svg style={{ width: 14, height: 14 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={d}/></svg>
+                          </button>
+                        ))}
                       </div>
                     </div>
-                    <div className="grid grid-cols-7 gap-2 mb-2">
-                      {days.map((d) => <div key={d} className="text-center text-sm text-gray-400 font-semibold py-1">{d.slice(0,2)}</div>)}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8, marginBottom: 8 }}>
+                      {days.map((d) => <div key={d} style={{ textAlign: 'center', fontSize: 12, color: 'rgba(26,42,58,0.4)', fontWeight: 600, padding: '4px 0' }}>{d.slice(0,2)}</div>)}
                     </div>
-                    <div className="grid grid-cols-7 gap-2">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
                       {dates.flat().map((date, idx) => (
                         <button
                           key={idx}
                           onClick={() => date && setSelectedDate(date)}
-                          className={`w-full h-12 flex items-center justify-center rounded-xl text-base font-medium transition-all
-                            ${!date ? 'invisible' : ''}
-                            ${date === selectedDate ? 'bg-teal-500 text-white shadow-sm' : 'hover:bg-gray-100 text-gray-600'}`}
+                          style={{
+                            width: '100%', height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 14, fontSize: 14, fontWeight: 500, cursor: date ? 'pointer' : 'default',
+                            visibility: date ? 'visible' : 'hidden',
+                            background: date === selectedDate ? '#2563eb' : 'transparent',
+                            color: date === selectedDate ? '#fff' : '#1a2a3a',
+                            border: 'none',
+                            transition: 'all 0.15s',
+                          }}
+                          onMouseEnter={e => { if (date && date !== selectedDate) e.currentTarget.style.background = 'rgba(26,42,58,0.05)'; }}
+                          onMouseLeave={e => { if (date && date !== selectedDate) e.currentTarget.style.background = 'transparent'; }}
                         >
                           {date}
                         </button>
@@ -828,23 +985,26 @@ function DoctorManagement() {
                   </div>
 
                   {/* appointments list */}
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                    <p className="text-base font-semibold text-gray-800 mb-4">
-                      Appointments — <span className="text-teal-500">Dec {selectedDate}</span>
+                  <div style={{ ...glass, padding: 24 }}>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#1a2a3a', marginBottom: 16 }}>
+                      Appointments — <span style={{ color: '#2563eb' }}>Dec {selectedDate}</span>
                     </p>
-                    <div className="space-y-3">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {appointments.length === 0 ? (
-                        <p className="text-sm text-gray-400 py-10 text-center">No appointments for this day</p>
+                        <p style={{ fontSize: 13, color: 'rgba(26,42,58,0.35)', textAlign: 'center', padding: '40px 0' }}>No appointments for this day</p>
                       ) : appointments.slice(0, 8).map((apt) => (
-                        <div key={apt.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-all">
-                          <span className="text-sm text-gray-400 w-20 flex-shrink-0 font-medium">{apt.time}</span>
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${apt.status === 'completed' ? 'bg-emerald-400' : apt.status === 'current' ? 'bg-teal-500' : 'bg-orange-400'}`} />
-                          <img src={apt.avatar} alt={apt.patientName} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-800 truncate">{apt.patientName}</p>
-                            <p className="text-xs text-gray-400 truncate mt-0.5">{apt.condition}</p>
+                        <div key={apt.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'rgba(26,42,58,0.03)', borderRadius: 16, border: '0.5px solid rgba(26,42,58,0.05)', cursor: 'pointer', transition: 'all 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,42,58,0.06)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'rgba(26,42,58,0.03)'}
+                        >
+                          <span style={{ fontSize: 12, color: 'rgba(26,42,58,0.45)', width: 72, flexShrink: 0, fontWeight: 500 }}>{apt.time}</span>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: statusColor(apt.status) }} />
+                          <img src={apt.avatar} alt={apt.patientName} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apt.patientName}</p>
+                            <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apt.condition}</p>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold flex-shrink-0 ${apt.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : apt.status === 'current' ? 'bg-teal-50 text-teal-600' : 'bg-orange-50 text-orange-500'}`}>
+                          <span style={{ padding: '4px 12px', borderRadius: 999, fontSize: 11, fontWeight: 600, flexShrink: 0, background: statusBg(apt.status), color: statusColor(apt.status) }}>
                             {apt.status}
                           </span>
                         </div>
@@ -858,28 +1018,34 @@ function DoctorManagement() {
             {/* ── REPORTS ── */}
             {activeView === 'reports' && (
               <>
-                <div className="mb-5">
-                  <h2 className="text-2xl font-bold text-gray-800">Medical Reports</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Patient medical record overview</p>
+                <div style={{ marginBottom: 20 }}>
+                  <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a2a3a' }}>Medical Reports</h2>
+                  <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>Patient medical record overview</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
                   {[
-                    { label: 'Lab Results', sub: '48 reports', color: 'text-blue-500', bg: 'bg-blue-50', btn: 'bg-blue-500 hover:bg-blue-600', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/> },
-                    { label: 'Imaging Studies', sub: '23 scans', color: 'text-purple-500', bg: 'bg-purple-50', btn: 'bg-purple-500 hover:bg-purple-600', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/> },
-                    { label: 'Prescriptions', sub: '156 entries', color: 'text-emerald-500', bg: 'bg-emerald-50', btn: 'bg-emerald-500 hover:bg-emerald-600', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/> },
-                    { label: 'Visit History', sub: '98 visits', color: 'text-orange-500', bg: 'bg-orange-50', btn: 'bg-orange-500 hover:bg-orange-600', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/> },
+                    { label: 'Lab Results', sub: '48 reports', color: '#2563eb', bg: 'rgba(37,99,235,0.08)', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/> },
+                    { label: 'Imaging Studies', sub: '23 scans', color: '#7c3aed', bg: 'rgba(124,58,237,0.08)', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/> },
+                    { label: 'Prescriptions', sub: '156 entries', color: '#16a34a', bg: 'rgba(22,163,74,0.08)', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/> },
+                    { label: 'Visit History', sub: '98 visits', color: '#f97316', bg: 'rgba(249,115,22,0.08)', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/> },
                   ].map((r) => (
-                    <div key={r.label} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:border-gray-200 transition-all">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className={`w-10 h-10 ${r.bg} rounded-xl flex items-center justify-center`}>
-                          <svg className={`w-5 h-5 ${r.color}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">{r.icon}</svg>
+                    <div key={r.label} style={{ ...glass, padding: 24, cursor: 'pointer', transition: 'all 0.15s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.8)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.65)'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                        <div style={{ width: 40, height: 40, background: r.bg, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg style={{ width: 20, height: 20, color: r.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor">{r.icon}</svg>
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-gray-800">{r.label}</p>
-                          <p className="text-xs text-gray-400">{r.sub}</p>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a' }}>{r.label}</p>
+                          <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)' }}>{r.sub}</p>
                         </div>
                       </div>
-                      <button className={`w-full py-2 ${r.btn} text-white text-xs font-semibold rounded-xl transition-all`}>View All</button>
+                      <button style={{ width: '100%', padding: '10px 0', background: r.color, color: '#fff', fontSize: 12, fontWeight: 600, borderRadius: 12, border: 'none', cursor: 'pointer', opacity: 0.9, transition: 'opacity 0.15s' }}
+                        onMouseEnter={e => e.target.style.opacity = '1'}
+                        onMouseLeave={e => e.target.style.opacity = '0.9'}
+                      >View All</button>
                     </div>
                   ))}
                 </div>
@@ -889,45 +1055,68 @@ function DoctorManagement() {
             {/* ── MESSAGES ── */}
             {activeView === 'messages' && (
               <>
-                <div className="mb-5">
-                  <h2 className="text-2xl font-bold text-gray-800">Messages</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">Patient communications</p>
+                <div style={{ marginBottom: 20 }}>
+                  <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a2a3a' }}>Messages</h2>
+                  <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>Patient communications</p>
                 </div>
-                <div className="grid grid-cols-3 gap-4" style={{ height: 'calc(100vh - 220px)' }}>
-                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex flex-col">
-                    <input type="text" placeholder="Search…" className="w-full px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm placeholder-gray-400 focus:outline-none mb-3" />
-                    <div className="flex-1 overflow-y-auto space-y-1.5">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, height: 'calc(100vh - 220px)' }}>
+                  <div style={{ ...glass, padding: 16, display: 'flex', flexDirection: 'column' }}>
+                    <input type="text" placeholder="Search…" style={{ width: '100%', padding: '8px 12px', background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.08)', borderRadius: 12, fontSize: 13, color: '#1a2a3a', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }} />
+                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {appointments.map((apt) => (
-                        <div key={apt.id} className="p-3 bg-gray-50 hover:bg-gray-100 rounded-xl cursor-pointer transition-all flex items-center gap-3">
-                          <img src={apt.avatar} alt={apt.patientName} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-700 truncate">{apt.patientName}</p>
-                            <p className="text-[10px] text-gray-400 truncate">Last message preview…</p>
+                        <div key={apt.id} style={{ padding: 12, background: 'rgba(26,42,58,0.03)', borderRadius: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'background 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,42,58,0.06)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'rgba(26,42,58,0.03)'}
+                        >
+                          <img src={apt.avatar} alt={apt.patientName} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 12, fontWeight: 600, color: '#1a2a3a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apt.patientName}</p>
+                            <p style={{ fontSize: 10, color: 'rgba(26,42,58,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Last message preview…</p>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="col-span-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-center text-gray-300">
-                    <div className="text-center">
-                      <svg className="w-14 h-14 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-                      <p className="text-sm">Select a conversation</p>
+                  <div style={{ ...glass, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ textAlign: 'center', color: 'rgba(26,42,58,0.2)' }}>
+                      <svg style={{ width: 56, height: 56, margin: '0 auto 12px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                      <p style={{ fontSize: 13 }}>Select a conversation</p>
                     </div>
                   </div>
                 </div>
               </>
             )}
 
-            {/* ── AI DIAGNOSIS ── */}
-            {activeView === 'ai-diagnosis' && (
-              <div className="flex-1 flex flex-col min-h-0">
-                <AIDiagnosis />
-              </div>
-            )}
-
+            </div>
           </main>
         </div>
-      </div>
+
+      {/* ══════════ AI FULLSCREEN OVERLAY ══════════ */}
+      {aiFullscreen && (
+        <div
+          ref={aiOverlayRef}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 200,
+            overflowY: 'auto',
+            background: 'linear-gradient(135deg, #c5d5e8 0%, #d4c5e2 35%, #e8c5d0 70%, #c5d8e8 100%)',
+          }}
+        >
+          {/* Atmospheric blobs */}
+          <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', width: 600, height: 600, borderRadius: '50%', background: 'rgba(180,160,220,0.28)', top: -150, left: -120, filter: 'blur(100px)' }} />
+            <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'rgba(240,180,200,0.22)', top: 80, right: -100, filter: 'blur(90px)' }} />
+            <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'rgba(160,200,230,0.22)', bottom: -80, left: '30%', filter: 'blur(80px)' }} />
+          </div>
+
+          {/* AIDiagnosis — manages its own input/results phases */}
+          <AIDiagnosis
+            onBack={exitAIFullscreen}
+            onPhaseChange={(p) => setAiPhase(p)}
+          />
+        </div>
+      )}
     </div>
   );
 }

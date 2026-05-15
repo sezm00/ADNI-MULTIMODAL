@@ -18,13 +18,13 @@ const BrainModelMini = () => {
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
       <primitive object={gltf.scene} scale={4.8} />
-      <ambientLight intensity={2.5} />
-      <directionalLight position={[5, 5, 5]} intensity={1.8} color="#ffffff" />
-      <directionalLight position={[-5, -3, -5]} intensity={0.8} color="#e0f2fe" />
+      <ambientLight intensity={2} />
+      <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
+      <directionalLight position={[-5, -5, -5]} intensity={1} color="#ffffff" />
       <directionalLight position={[0, 5, 5]} intensity={1.2} color="#ffffff" />
-      <pointLight position={[0, 0, 8]} intensity={1.0} color="#2dd4bf" />
-      <pointLight position={[4, 0, 0]} intensity={0.6} color="#34d399" />
-      <pointLight position={[-4, 0, 0]} intensity={0.4} color="#60a5fa" />
+      <pointLight position={[0, 0, 10]} intensity={0.9} color="#60a5fa" />
+      <pointLight position={[5, 0, 0]} intensity={0.6} color="#3b82f6" />
+      <pointLight position={[-5, 0, 0]} intensity={0.5} color="#8b5cf6" />
     </group>
   );
 };
