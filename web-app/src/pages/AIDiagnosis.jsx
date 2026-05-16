@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import api from '../services/api';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { useGLTF, Html } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
 /* ══════════════════════════════════════════
@@ -31,160 +31,7 @@ const INIT = {
 
 const STRING_FIELDS = ['ORIGPROT','PTCOGBEG','PTADDX','FSVERSION_bl','VISDATE_ptd'];
 
-/* ══════════════════════════════════════════
-   SCANNING PHASE KEYFRAMES
-══════════════════════════════════════════ */
-const SCAN_CSS = `
-@keyframes radarRing {
-  0%   { transform: translate(-50%,-50%) scale(0.3); opacity: 0.8; }
-  100% { transform: translate(-50%,-50%) scale(3.2); opacity: 0; }
-}
-@keyframes hotPulse {
-  0%,100% { opacity: 1;   transform: scale(1); }
-  50%      { opacity: 0.2; transform: scale(1.5); }
-}
-@keyframes hotRing {
-  0%   { transform: scale(0.5); opacity: 0.9; }
-  100% { transform: scale(2.8); opacity: 0; }
-}
-@keyframes rotateVFX2 {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-@keyframes scanFadeIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes scanFadeOut {
-  from { opacity: 1; transform: translateY(0); }
-  to   { opacity: 0; transform: translateY(-12px); }
-}
-@keyframes progressFill {
-  from { width: 0%; }
-  to   { width: 100%; }
-}`;
 
-/* ══════════════════════════════════════════
-   BRAIN REGIONS BY DIAGNOSIS
-   camera: [x,y,z] to zoom toward that region
-   hotPos: overlay position on canvas
-══════════════════════════════════════════ */
-const BRAIN_REGIONS = {
-  CN: [
-    {
-      id: 'hc', label: 'Hippocampus', status: 'Normal',
-      color: '#22c55e',
-      camera: [0.4, -0.3, 2.1],
-      hotPos: { left: '58%', top: '55%' },
-      title: 'Hippocampus — Memory Hub',
-      body: 'The hippocampus shows no signs of atrophy or volume loss. This bilateral structure is essential for converting short-term memories into long-term storage. Normal MMSE and CDRSB scores confirm healthy episodic memory consolidation. Neuronal density appears preserved across CA1, CA3, and dentate gyrus subfields.',
-      badge: 'Volume Preserved',
-    },
-    {
-      id: 'pfc', label: 'Prefrontal Cortex', status: 'Normal',
-      color: '#22c55e',
-      camera: [0, 0.7, 2.0],
-      hotPos: { left: '50%', top: '18%' },
-      title: 'Prefrontal Cortex — Executive Control',
-      body: 'The prefrontal cortex demonstrates intact grey matter density and connectivity. This region governs working memory, decision-making, and inhibitory control. Low FAQ scores confirm that daily functional tasks — managing finances, cooking, medication — remain fully unimpaired. Dopaminergic and cholinergic pathways appear normal.',
-      badge: 'Fully Functional',
-    },
-    {
-      id: 'ec', label: 'Entorhinal Cortex', status: 'Normal',
-      color: '#22c55e',
-      camera: [-0.5, -0.2, 2.0],
-      hotPos: { left: '32%', top: '52%' },
-      title: 'Entorhinal Cortex — Gateway to Memory',
-      body: 'The entorhinal cortex, the primary relay between sensory cortices and the hippocampus, shows no tau pathology. This region is typically the earliest site of Alzheimer\'s-related neurodegeneration. Its normal function here strongly supports a cognitively healthy classification and reduces 5-year progression risk significantly.',
-      badge: 'No Tau Pathology',
-    },
-  ],
-  MCI: [
-    {
-      id: 'hc', label: 'Hippocampus', status: 'Early Atrophy',
-      color: '#f97316',
-      camera: [0.4, -0.3, 2.0],
-      hotPos: { left: '58%', top: '55%' },
-      title: 'Hippocampus — Early Volume Loss',
-      body: 'Subtle but measurable volumetric reduction detected in the hippocampal CA1 subfield — a hallmark of early MCI. CDRSB score elevation aligns with emerging episodic memory difficulties. Tau neurofibrillary tangles may be beginning to accumulate. MRI-based volumetry would confirm a 5–10% bilateral reduction compared to age-matched norms.',
-      badge: '~8% Volume Reduction',
-    },
-    {
-      id: 'ec', label: 'Entorhinal Cortex', status: 'Tau Suspect',
-      color: '#f97316',
-      camera: [-0.5, -0.2, 1.9],
-      hotPos: { left: '32%', top: '52%' },
-      title: 'Entorhinal Cortex — Tau Accumulation',
-      body: 'The entorhinal cortex is showing early signs of tau propagation — the spread of misfolded tau protein that precedes hippocampal involvement. This region is Braak Stage II in Alzheimer\'s progression. The patient\'s Logical Memory delayed recall scores suggest that the hippocampal-entorhinal circuit is under stress, impairing new memory encoding.',
-      badge: 'Braak Stage II',
-    },
-    {
-      id: 'pfc', label: 'Prefrontal Cortex', status: 'Mild Decline',
-      color: '#fbbf24',
-      camera: [0, 0.7, 2.0],
-      hotPos: { left: '50%', top: '18%' },
-      title: 'Prefrontal Cortex — Mild Executive Decline',
-      body: 'Mild reductions in executive function are reflected in the mPACCtrailsB scores. The prefrontal cortex begins to show reduced metabolic activity, often visible on FDG-PET imaging as hypometabolism in dorsolateral prefrontal areas. Planning complex tasks, multitasking, and sustained attention may be subtly impaired at this stage.',
-      badge: 'Mild Hypometabolism',
-    },
-    {
-      id: 'par', label: 'Parietal Lobe', status: 'Affected',
-      color: '#f97316',
-      camera: [-0.6, 0.3, 2.0],
-      hotPos: { left: '26%', top: '30%' },
-      title: 'Parietal Lobe — Spatial Processing',
-      body: 'The inferior parietal lobule, including the angular and supramarginal gyri, shows early signs of cortical thinning. This region integrates sensory information for spatial navigation, visuospatial processing, and number sense. Patients may begin noticing difficulty with map reading, judging distances, or following complex spatial instructions.',
-      badge: 'Cortical Thinning',
-    },
-  ],
-  Dementia: [
-    {
-      id: 'hc', label: 'Hippocampus', status: 'Severe Atrophy',
-      color: '#ef4444',
-      camera: [0.4, -0.3, 1.8],
-      hotPos: { left: '58%', top: '55%' },
-      title: 'Hippocampus — Significant Neurodegeneration',
-      body: 'Advanced hippocampal atrophy is present bilaterally, consistent with severe Alzheimer\'s disease. Volume loss of 30–40% compared to age-matched controls is typical at this stage. The CA1 subfield is critically depleted of pyramidal neurons. New memory formation is severely compromised. This directly explains the CDRSB score elevation and impaired Logical Memory delayed recall performance.',
-      badge: '~35% Volume Loss',
-    },
-    {
-      id: 'ec', label: 'Entorhinal Cortex', status: 'Severe',
-      color: '#ef4444',
-      camera: [-0.5, -0.2, 1.8],
-      hotPos: { left: '32%', top: '52%' },
-      title: 'Entorhinal Cortex — Advanced Neurodegeneration',
-      body: 'The entorhinal cortex has sustained extensive neuronal loss, consistent with Braak Stage V–VI. Dense tau neurofibrillary tangles have spread throughout this region, severing the critical relay pathway between association cortices and the hippocampus. β-amyloid plaques have additionally accumulated, causing synaptic dysfunction across broad cortical networks.',
-      badge: 'Braak Stage V–VI',
-    },
-    {
-      id: 'pfc', label: 'Prefrontal Cortex', status: 'Dysfunction',
-      color: '#ef4444',
-      camera: [0, 0.7, 1.8],
-      hotPos: { left: '50%', top: '18%' },
-      title: 'Prefrontal Cortex — Executive Dysfunction',
-      body: 'Widespread prefrontal grey matter loss has resulted in significant executive dysfunction. Patients exhibit profound deficits in planning, abstract reasoning, impulse control, and working memory. FDG-PET would reveal severe hypometabolism across the entire frontal lobe. The high FAQ score directly reflects inability to manage daily financial, social, and self-care activities independently.',
-      badge: 'Severe Hypometabolism',
-    },
-    {
-      id: 'par', label: 'Parietal Lobe', status: 'Plaques Detected',
-      color: '#ef4444',
-      camera: [-0.6, 0.3, 1.8],
-      hotPos: { left: '26%', top: '30%' },
-      title: 'Parietal Lobe — Amyloid Burden',
-      body: 'The parietal cortex carries a heavy β-amyloid plaque burden, particularly in the precuneus and posterior cingulate — regions that are among the earliest sites of amyloid accumulation and are central to the default mode network. Cortical thinning here produces the characteristic visuospatial and apraxic symptoms of moderate-to-severe Alzheimer\'s disease.',
-      badge: 'High Amyloid Load',
-    },
-    {
-      id: 'tmp', label: 'Temporal Lobe', status: 'Impaired',
-      color: '#dc2626',
-      camera: [0.5, -0.1, 1.8],
-      hotPos: { left: '62%', top: '60%' },
-      title: 'Temporal Lobe — Language & Semantic Memory',
-      body: 'The superior and middle temporal gyri show marked cortical thinning with progressive neuronal dropout. Language comprehension, semantic memory, and auditory processing are severely compromised. Patients typically present with word-finding difficulties (anomia), impaired comprehension of spoken language, and loss of object knowledge. This pattern is characteristic of late-stage Alzheimer\'s temporal involvement.',
-      badge: 'Language Impaired',
-    },
-  ],
-};
 
 /* ══════════════════════════════════════════
    SHARED STYLES
@@ -558,246 +405,6 @@ function InputPhase({ form, setForm, onSubmit, loading, error, onBack }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   SCANNING PHASE — cinematic brain analysis
-══════════════════════════════════════════ */
-function ScanningBrain({ diagnosis, targetCamera, onCameraReady }) {
-  const { scene } = useGLTF('/brain.glb');
-  const groupRef = useRef();
-  const col = DIAGNOSIS_COLORS[diagnosis];
-
-  useEffect(() => {
-    scene.traverse(child => {
-      if (child.isMesh) {
-        child.material = new THREE.MeshStandardMaterial({
-          color: '#a8c0d8',
-          emissive: col.grad[0],
-          emissiveIntensity: 0.20,
-          roughness: 0.38,
-          metalness: 0.12,
-          transparent: true,
-          opacity: 0.96,
-        });
-      }
-    });
-  }, [scene, diagnosis]);
-
-  // Always spin slowly
-  useFrame((state, delta) => {
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.09;
-
-    // Smoothly lerp camera toward target
-    if (targetCamera) {
-      const [tx, ty, tz] = targetCamera;
-      state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, tx, delta * 0.6);
-      state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, ty, delta * 0.6);
-      state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, tz, delta * 0.6);
-      state.camera.lookAt(0, -0.05, 0);
-    }
-  });
-
-  return (
-    <group ref={groupRef}>
-      <primitive object={scene} scale={2.6} position={[0, -0.28, 0]} />
-    </group>
-  );
-}
-
-function ScanningPhaseOverlay({ result, region, regions, activeIdx, panelKey, progressKey, onSkip, DWELL }) {
-  const col = DIAGNOSIS_COLORS[result.prediction];
-
-  return createPortal(
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 300,
-      display: 'flex', alignItems: 'stretch',
-      fontFamily: FONT, overflow: 'hidden',
-      background: 'linear-gradient(135deg, #c5d5e8 0%, #d4c5e2 35%, #e8c5d0 70%, #c5d8e8 100%)',
-    }}>
-      {/* Left panel background */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, bottom: 0, width: '38%',
-        background: 'linear-gradient(160deg, #c8d6e8 0%, #d8c8e4 50%, #e4c8d4 100%)',
-        zIndex: 0,
-      }}>
-        {/* Atmospheric blob */}
-        <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: `${region.color}22`, top: '30%', left: '-20%', filter: 'blur(120px)', transition: 'background 1.2s ease' }} />
-      </div>
-
-      {/* ── LEFT DETAIL PANEL ── */}
-      <div style={{
-        position: 'relative', zIndex: 10,
-        width: '38%', flexShrink: 0,
-        display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        padding: '64px 40px 64px 52px',
-      }}>
-        {/* Region counter */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '5px 14px', borderRadius: 999,
-          background: 'rgba(255,255,255,0.35)', backdropFilter: 'blur(12px)',
-          border: '0.5px solid rgba(255,255,255,0.65)',
-          marginBottom: 28, width: 'fit-content',
-          animation: 'scanFadeIn 0.5s ease forwards',
-        }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: region.color, animation: 'hotPulse 1.3s ease-in-out infinite' }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#1a2a3a', letterSpacing: '0.10em', textTransform: 'uppercase' }}>
-            Region {activeIdx + 1} of {regions.length}
-          </span>
-        </div>
-
-        {/* Animated panel content — key forces remount per region */}
-        <div key={panelKey} style={{ animation: 'scanFadeIn 0.55s ease forwards' }}>
-          {/* Status badge */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '6px 16px', borderRadius: 999, marginBottom: 20,
-            background: `${region.color}1a`, border: `1px solid ${region.color}55`,
-          }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: region.color }} />
-            <span style={{ fontSize: 12, fontWeight: 700, color: region.color, letterSpacing: '0.04em' }}>{region.status}</span>
-          </div>
-
-          {/* Title */}
-          <h2 style={{ fontSize: 26, fontWeight: 700, color: '#1a2a3a', lineHeight: 1.25, marginBottom: 16, letterSpacing: '-0.02em' }}>{region.title}</h2>
-
-          {/* Badge pill */}
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '7px 18px', borderRadius: 12, marginBottom: 22,
-            background: 'rgba(255,255,255,0.65)', backdropFilter: 'blur(12px)',
-            border: '0.5px solid rgba(255,255,255,0.85)',
-            boxShadow: `0 4px 20px ${region.color}20`,
-          }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: region.color }}>{region.badge}</span>
-          </div>
-
-          {/* Body text */}
-          <p style={{ fontSize: 14, lineHeight: 1.85, color: 'rgba(26,42,58,0.72)', fontWeight: 400, maxWidth: 420 }}>{region.body}</p>
-        </div>
-
-        {/* Progress bar */}
-        <div style={{ marginTop: 32 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(26,42,58,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Analyzing region</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: region.color }}>{region.label}</span>
-          </div>
-          <div style={{ height: 3, background: 'rgba(26,42,58,0.1)', borderRadius: 999, overflow: 'hidden' }}>
-            <div key={progressKey} style={{
-              height: '100%', borderRadius: 999,
-              background: `linear-gradient(90deg, ${region.color}88, ${region.color})`,
-              animation: `progressFill ${DWELL}ms linear forwards`,
-            }} />
-          </div>
-        </div>
-
-        {/* Skip + dot trail */}
-        <div style={{ marginTop: 24, display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button onClick={onSkip} style={{
-            padding: '8px 22px', borderRadius: 999,
-            background: 'rgba(255,255,255,0.40)', backdropFilter: 'blur(12px)',
-            border: '0.5px solid rgba(255,255,255,0.75)',
-            fontSize: 12, fontWeight: 600, color: '#1a2a3a', cursor: 'pointer',
-          }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.65)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.40)'}
-          >Skip to Results →</button>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {regions.map((_, i) => (
-              <div key={i} style={{
-                width: i === activeIdx ? 18 : 6, height: 6, borderRadius: 999,
-                background: i <= activeIdx ? region.color : 'rgba(26,42,58,0.18)',
-                transition: 'all 0.35s ease',
-              }} />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── RIGHT: Canvas + hotspot overlay ── */}
-      <div style={{ flex: 1, position: 'relative' }}>
-        {/* Three.js brain */}
-        <Canvas
-          camera={{ position: [0, 0.1, 3.8], fov: 52 }}
-          style={{ width: '100%', height: '100%' }}
-          gl={{ antialias: true, alpha: true }}>
-          <ambientLight intensity={3.2} color="#d8e8f8" />
-          <directionalLight position={[4, 6, 4]}  intensity={2.8} color="#ffffff" />
-          <directionalLight position={[-4, 2, 3]} intensity={1.8} color="#c0d8ff" />
-          <pointLight position={[0, 0, 4]} intensity={2.0} color="#e4eeff" />
-          <pointLight position={[0, 3, 2]} intensity={1.4} color={region.color} />
-          <Suspense fallback={null}>
-            <PersistentBrainScene
-              diagnosis={result.prediction}
-              mode="scanning"
-              targetCamera={region.camera.map((v, i) => i === 2 ? v + 1.4 : v)}
-              accentColor={region.color}
-            />
-          </Suspense>
-        </Canvas>
-
-        {/* Hotspot overlay on the active region */}
-        <div key={`hs-${panelKey}`} style={{
-          position: 'absolute',
-          left: region.hotPos.left,
-          top: region.hotPos.top,
-          zIndex: 10,
-          animation: 'scanFadeIn 0.5s ease 0.3s both',
-          pointerEvents: 'none',
-        }}>
-          <div style={{ position: 'relative', width: 0, height: 0 }}>
-            {[0, 0.7, 1.4].map((delay, i) => (
-              <div key={i} style={{
-                position: 'absolute', top: '50%', left: '50%',
-                width: 36, height: 36, borderRadius: '50%',
-                border: `1.5px solid ${region.color}`,
-                animation: `hotRing 2s ease-out ${delay}s infinite`,
-              }} />
-            ))}
-            <div style={{
-              position: 'absolute', top: '50%', left: '50%',
-              width: 52, height: 52, borderRadius: '50%',
-              marginLeft: -26, marginTop: -26,
-              border: `1.5px solid ${region.color}44`,
-              borderTopColor: region.color,
-              animation: 'rotateVFX2 3s linear infinite',
-            }} />
-            <div style={{
-              position: 'absolute', top: '50%', left: '50%',
-              width: 36, height: 36, borderRadius: '50%',
-              marginLeft: -18, marginTop: -18,
-              border: `2px solid ${region.color}cc`,
-              background: `${region.color}33`,
-              backdropFilter: 'blur(4px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <div style={{ width: 9, height: 9, borderRadius: '50%', background: region.color, animation: 'hotPulse 1.4s ease-in-out infinite' }} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Top status bar */}
-      <div style={{
-        position: 'absolute', top: 28, left: '50%', transform: 'translateX(-50%)',
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '8px 22px', borderRadius: 999,
-        background: 'rgba(255,255,255,0.28)', backdropFilter: 'blur(16px)',
-        border: '0.5px solid rgba(255,255,255,0.6)',
-        animation: 'scanFadeIn 0.6s ease forwards',
-        zIndex: 20,
-      }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: col.grad[0], animation: 'hotPulse 1.2s ease-in-out infinite' }} />
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#1a2a3a', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-          {DIAGNOSIS_LABELS[result.prediction]} · Neural Scan
-        </span>
-        <span style={{ fontSize: 11, fontWeight: 500, color: 'rgba(26,42,58,0.45)' }}>
-          {(result.confidence * 100).toFixed(0)}% confidence
-        </span>
-      </div>
-    </div>,
-    document.body
-  );
-}
 
 
 /* ══════════════════════════════════════════
@@ -1181,52 +788,6 @@ function ResultsPhase({ result, aiRecs, onReset, onBack }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   PERSISTENT BRAIN SCENE
-   Single scene rendered inside the shared Canvas.
-   Mode controls what the camera / material does.
-   mode: 'idle' | 'scanning' | 'results'
-══════════════════════════════════════════ */
-function PersistentBrainScene({ diagnosis, mode, targetCamera, accentColor }) {
-  const { scene } = useGLTF('/brain.glb');
-  const groupRef  = useRef();
-  const col       = diagnosis ? DIAGNOSIS_COLORS[diagnosis] : null;
-  const emissive  = col ? col.grad[0] : '#5888c8';
-
-  useEffect(() => {
-    scene.traverse(child => {
-      if (child.isMesh) {
-        child.material = new THREE.MeshStandardMaterial({
-          color: '#a8c0d8',
-          emissive,
-          emissiveIntensity: mode === 'idle' ? 0.06 : 0.20,
-          roughness: 0.38,
-          metalness: 0.12,
-          transparent: true,
-          opacity: 0.96,
-        });
-      }
-    });
-  }, [scene, emissive, mode]);
-
-  useFrame((state, delta) => {
-    // Always spin
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.09;
-
-    // Lerp camera toward target when scanning; reset to default otherwise
-    const [tx, ty, tz] = targetCamera || [0, 0.1, 3.8];
-    state.camera.position.x = THREE.MathUtils.lerp(state.camera.position.x, tx, delta * 0.55);
-    state.camera.position.y = THREE.MathUtils.lerp(state.camera.position.y, ty, delta * 0.55);
-    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, tz, delta * 0.55);
-    state.camera.lookAt(0, -0.05, 0);
-  });
-
-  return (
-    <group ref={groupRef}>
-      <primitive object={scene} scale={2.2} position={[0, -0.28, 0]} />
-    </group>
-  );
-}
 
 /* ══════════════════════════════════════════
    MAIN COMPONENT
@@ -1241,49 +802,11 @@ export default function AIDiagnosis({ onBack, onPhaseChange }) {
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
-  // Scanning region state lifted here so it can drive the shared Canvas
-  const [scanIdx, setScanIdx]         = useState(0);
-  const [scanPanelKey, setScanPanelKey] = useState(0);
-  const [scanProgressKey, setScanProgressKey] = useState(0);
-  const [scanStarted, setScanStarted] = useState(false);
-
-  const inputWrapRef  = useRef(null);
-  const brainPortalRef = useRef(null);
-  const DWELL = 7000;
+  const inputWrapRef = useRef(null);
 
   const setPhaseWithCallback = (p) => {
     setPhase(p);
     onPhaseChange?.(p);
-  };
-
-  // When phase becomes 'scanning', kick off region cycling
-  useEffect(() => {
-    if (phase !== 'scanning' || !result || scanStarted) return;
-    setScanStarted(true);
-    const regions = BRAIN_REGIONS[result.prediction] || [];
-    if (!regions.length) { setPhaseWithCallback('results'); return; }
-
-    const timers = [];
-    regions.forEach((_, i) => {
-      timers.push(setTimeout(() => {
-        setScanIdx(i);
-        setScanPanelKey(k => k + 1);
-        setScanProgressKey(k => k + 1);
-      }, i * DWELL));
-    });
-    timers.push(setTimeout(() => {
-      doScanComplete();
-    }, regions.length * DWELL + 1600));
-
-    return () => timers.forEach(clearTimeout);
-  }, [phase, result]);
-
-  const doScanComplete = () => {
-    setScanStarted(false);
-    setScanIdx(0);
-    setScanPanelKey(0);
-    setScanProgressKey(0);
-    setPhaseWithCallback('results');
   };
 
   const onSubmit = async e => {
@@ -1305,13 +828,13 @@ export default function AIDiagnosis({ onBack, onPhaseChange }) {
             onComplete: () => {
               setResult(res.data.prediction);
               setAiRecs(res.data.aiRecommendations || null);
-              setPhaseWithCallback('scanning');
+              setPhaseWithCallback('results');
             },
           });
         } else {
           setResult(res.data.prediction);
           setAiRecs(res.data.aiRecommendations || null);
-          setPhaseWithCallback('scanning');
+          setPhaseWithCallback('results');
         }
       }
     } catch (err) {
@@ -1325,7 +848,6 @@ export default function AIDiagnosis({ onBack, onPhaseChange }) {
 
   const handleReset = () => {
     setResult(null); setAiRecs(null); setForm(INIT); setError('');
-    setScanStarted(false); setScanIdx(0);
     setPhaseWithCallback('input');
   };
 
@@ -1334,21 +856,8 @@ export default function AIDiagnosis({ onBack, onPhaseChange }) {
     onBack?.();
   };
 
-  // Derive current scanning region
-  const scanRegions = result ? (BRAIN_REGIONS[result.prediction] || []) : [];
-  const scanRegion  = scanRegions[scanIdx] || scanRegions[0];
-
-  // Camera target: scanning → zoom toward region; idle/results → pull back
-  const cameraTarget = (phase === 'scanning' && scanRegion)
-    ? scanRegion.camera.map((v, i) => i === 2 ? v + 1.4 : v)  // pull back from raw values
-    : [0, 0.1, 3.8];
-
-  const accentColor = result ? DIAGNOSIS_COLORS[result.prediction].grad[0] : '#5888c8';
-
   return (
     <>
-      <style>{SCAN_CSS}</style>
-
       {/* INPUT PHASE */}
       {phase === 'input' && (
         <div ref={inputWrapRef}>
@@ -1358,20 +867,6 @@ export default function AIDiagnosis({ onBack, onPhaseChange }) {
             error={error} onBack={onBack}
           />
         </div>
-      )}
-
-      {/* SCANNING OVERLAY — own Canvas, portaled fullscreen */}
-      {phase === 'scanning' && result && scanRegion && (
-        <ScanningPhaseOverlay
-          result={result}
-          region={scanRegion}
-          regions={scanRegions}
-          activeIdx={scanIdx}
-          panelKey={scanPanelKey}
-          progressKey={scanProgressKey}
-          onSkip={doScanComplete}
-          DWELL={DWELL}
-        />
       )}
 
       {/* RESULTS PHASE */}
