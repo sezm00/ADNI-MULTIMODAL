@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect, Suspense } from 'react';
+import React, { useState, useRef, useEffect, Suspense, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import api from '../services/api';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils';
 
 /* ══════════════════════════════════════════
    CONSTANTS
@@ -15,9 +16,9 @@ const DIAGNOSIS_LABELS = {
   Dementia: "Alzheimer's Disease",
 };
 const DIAGNOSIS_COLORS = {
-  CN:       { grad: ['#16a34a','#15803d'], light: 'rgba(22,163,74,0.08)',  border: 'rgba(22,163,74,0.15)',  text: '#15803d', dot: '#16a34a' },
-  MCI:      { grad: ['#f97316','#ea580c'], light: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.15)', text: '#ea580c', dot: '#f97316' },
-  Dementia: { grad: ['#ef4444','#dc2626'], light: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.15)',  text: '#dc2626', dot: '#ef4444' },
+  CN:       { grad: ['#16a34a','#15803d'], light: 'rgba(22,163,74,0.08)',  border: 'rgba(22,163,74,0.15)',  text: '#15803d', dot: '#16a34a', pulse: '#86efac', pulseGlow: 'rgba(134,239,172,0.55)' },
+  MCI:      { grad: ['#f97316','#ea580c'], light: 'rgba(249,115,22,0.08)', border: 'rgba(249,115,22,0.15)', text: '#ea580c', dot: '#f97316', pulse: '#fdba74', pulseGlow: 'rgba(253,186,116,0.55)' },
+  Dementia: { grad: ['#ef4444','#dc2626'], light: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.15)',  text: '#dc2626', dot: '#ef4444', pulse: '#fca5a5', pulseGlow: 'rgba(252,165,165,0.55)' },
 };
 
 const INIT = {
@@ -59,26 +60,16 @@ const inputStyle = {
    3-D BRAIN
 ══════════════════════════════════════════ */
 function Brain({ vivid = false }) {
-  const { scene } = useGLTF('/brain.glb');
+  const { scene: source } = useGLTF('/brain.glb');
+  // Clone so each consumer of brain.glb has its own Object3D — otherwise the
+  // Overview's BrainCanvasMini ends up empty after this canvas unmounts.
+  // Native GLB materials are preserved (no traversal/override).
+  const scene = useMemo(() => SkeletonUtils.clone(source), [source]);
   const ref = useRef();
-  React.useEffect(() => {
-    scene.traverse(child => {
-      if (child.isMesh) {
-        child.material = new THREE.MeshStandardMaterial({
-          color: vivid ? '#a0bcd8' : '#b8cce0',
-          emissive: vivid ? '#5888c8' : '#8aaac8',
-          emissiveIntensity: vivid ? 0.22 : 0.06,
-          roughness: vivid ? 0.40 : 0.55,
-          metalness: vivid ? 0.15 : 0.05,
-          transparent: true, opacity: 0.97,
-        });
-      }
-    });
-  }, [scene, vivid]);
   useFrame((_, delta) => { if (ref.current) ref.current.rotation.y += delta * 0.13; });
   return (
     <group ref={ref}>
-      <primitive object={scene} scale={vivid ? 2.1 : 1.85} position={[0, -0.2, 0]} />
+      <primitive object={scene} scale={vivid ? 1.9 : 1.85} position={[0, -0.2, 0]} />
     </group>
   );
 }
@@ -88,13 +79,13 @@ function BrainCanvas({ vivid = false, style }) {
     <Canvas camera={{ position: [0, 0.2, vivid ? 3.0 : 3.2], fov: vivid ? 56 : 52 }}
       style={style || { width: '100%', height: '100%' }}
       gl={{ antialias: true, alpha: true }}>
-      <ambientLight intensity={vivid ? 3.2 : 2.2} color="#d8e8f8" />
-      <directionalLight position={[4, 6, 4]}  intensity={vivid ? 2.8 : 1.6} color="#ffffff" />
-      <directionalLight position={[-4, 2, 3]} intensity={vivid ? 1.8 : 0.9} color="#c0d8ff" />
-      <directionalLight position={[0, -3, -2]} intensity={0.4} color="#b8c8e8" />
-      <pointLight position={[0, 0, 4]} intensity={vivid ? 1.8 : 0.6} color="#e4eeff" />
-      {vivid && <pointLight position={[3, 4, 2]} intensity={1.2} color="#90c8ff" />}
-      {vivid && <pointLight position={[-2, -2, 3]} intensity={0.8} color="#c0a8ff" />}
+      <ambientLight intensity={vivid ? 2.6 : 2.0} color="#ffffff" />
+      <directionalLight position={[4, 6, 4]}  intensity={vivid ? 2.4 : 1.6} color="#ffffff" />
+      <directionalLight position={[-4, 2, 3]} intensity={vivid ? 1.4 : 0.9} color="#ffffff" />
+      <directionalLight position={[0, -3, -2]} intensity={0.4} color="#ffffff" />
+      <pointLight position={[0, 0, 4]} intensity={vivid ? 1.2 : 0.6} color="#ffe8dc" />
+      {vivid && <pointLight position={[3, 4, 2]} intensity={0.9} color="#ffd0bc" />}
+      {vivid && <pointLight position={[-2, -2, 3]} intensity={0.6} color="#ffc8a8" />}
       <Suspense fallback={null}>
         <Brain vivid={vivid} />
       </Suspense>
@@ -126,6 +117,101 @@ function NumInput({ name, value, onChange, placeholder, min, max }) {
       min={min} max={max} placeholder={placeholder} style={inputStyle}
       onFocus={e => e.target.style.borderColor = 'rgba(37,99,235,0.4)'}
       onBlur={e => e.target.style.borderColor = 'rgba(26,42,58,0.10)'} />
+  );
+}
+
+function DateInput({ name, value, onChange }) {
+  return (
+    <input type="date" name={name} value={value} onChange={onChange}
+      style={{ ...inputStyle, cursor: 'pointer' }}
+      onFocus={e => e.target.style.borderColor = 'rgba(37,99,235,0.4)'}
+      onBlur={e => e.target.style.borderColor = 'rgba(26,42,58,0.10)'} />
+  );
+}
+
+function MriDropzone({ file, onPick, onClear }) {
+  const inputRef = useRef(null);
+  const [drag, setDrag] = useState(false);
+
+  const handleFile = (f) => {
+    if (!f) return;
+    if (!f.name.toLowerCase().endsWith('.zip')) {
+      alert('Please upload a .zip archive of DICOM (.dcm) files.');
+      return;
+    }
+    onPick(f);
+  };
+
+  return (
+    <div
+      onClick={() => inputRef.current?.click()}
+      onDragOver={e => { e.preventDefault(); setDrag(true); }}
+      onDragLeave={() => setDrag(false)}
+      onDrop={e => {
+        e.preventDefault(); setDrag(false);
+        handleFile(e.dataTransfer.files?.[0]);
+      }}
+      style={{
+        padding: '20px 18px',
+        borderRadius: 14,
+        border: drag
+          ? '1.5px dashed rgba(37,99,235,0.55)'
+          : '1.5px dashed rgba(26,42,58,0.18)',
+        background: drag ? 'rgba(37,99,235,0.06)' : 'rgba(255,255,255,0.45)',
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+        display: 'flex', alignItems: 'center', gap: 14,
+        fontFamily: FONT,
+      }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".zip,application/zip,application/x-zip-compressed"
+        onChange={e => handleFile(e.target.files?.[0])}
+        style={{ display: 'none' }}
+      />
+      <div style={{
+        width: 42, height: 42, borderRadius: 12, flexShrink: 0,
+        background: file ? 'rgba(22,163,74,0.10)' : 'rgba(37,99,235,0.10)',
+        color: file ? '#16a34a' : '#2563eb',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {file ? (
+          <svg style={{ width: 20, height: 20 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        ) : (
+          <svg style={{ width: 20, height: 20 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+        )}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {file ? (
+          <>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</p>
+            <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.5)', marginTop: 2 }}>{(file.size / (1024 * 1024)).toFixed(1)} MB — will run fused (XGBoost + CNN) prediction</p>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a' }}>Upload MRI scan (DICOM .zip)</p>
+            <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.5)', marginTop: 2 }}>Drop a .zip of DICOM files here or click to browse — optional, boosts accuracy</p>
+          </>
+        )}
+      </div>
+      {file && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onClear(); }}
+          style={{
+            background: 'transparent', border: '0.5px solid rgba(26,42,58,0.12)',
+            borderRadius: 10, padding: '6px 10px', fontSize: 11, fontWeight: 600,
+            color: 'rgba(26,42,58,0.6)', cursor: 'pointer', fontFamily: FONT,
+          }}
+        >Remove</button>
+      )}
+    </div>
   );
 }
 
@@ -261,7 +347,7 @@ function ClinicalGuide() {
 /* ══════════════════════════════════════════
    INPUT PHASE — padded glass form
 ══════════════════════════════════════════ */
-function InputPhase({ form, setForm, onSubmit, loading, error, onBack }) {
+function InputPhase({ form, setForm, mriFile, setMriFile, onSubmit, loading, error, onBack }) {
   const [inputTab, setInputTab] = useState('cognitive');
   const onChange = e => setForm(p => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -297,9 +383,6 @@ function InputPhase({ form, setForm, onSubmit, loading, error, onBack }) {
             </svg>
           </button>
         )}
-        <div style={{ width: 38, height: 38, borderRadius: 12, background: 'linear-gradient(135deg,#7c3aed,#2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <svg style={{ width: 20, height: 20, color: '#fff' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-        </div>
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 300, color: '#1a2a3a', fontFamily: FONT, letterSpacing: '-0.02em', lineHeight: 1 }}>AI Alzheimer Diagnosis</h1>
           <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', fontFamily: FONT, marginTop: 3 }}>Top-15 Feature XGBoost Model · 92% accuracy</p>
@@ -312,7 +395,7 @@ function InputPhase({ form, setForm, onSubmit, loading, error, onBack }) {
         {/* Form card */}
         <div style={{ ...glass, overflow: 'hidden' }}>
           <div style={{ display: 'flex', borderBottom: '0.5px solid rgba(26,42,58,0.07)' }}>
-            {[{ id: 'cognitive', label: 'Core Cognitive' },{ id: 'memory', label: 'Memory Tests' },{ id: 'protocol', label: 'Protocol Info' }].map(t => (
+            {[{ id: 'cognitive', label: 'Core Cognitive' },{ id: 'memory', label: 'Memory Tests' },{ id: 'profile', label: 'Patient Profile' }].map(t => (
               <button key={t.id} onClick={() => setInputTab(t.id)} style={{
                 flex: 1, padding: '14px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                 fontFamily: FONT, border: 'none',
@@ -354,11 +437,30 @@ function InputPhase({ form, setForm, onSubmit, loading, error, onBack }) {
                 </div>
               </div>
             )}
-            {inputTab === 'protocol' && (
+            {inputTab === 'profile' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div><Label text="ADNI Study Protocol" /><SelectInput name="ORIGPROT" value={form.ORIGPROT} onChange={onChange} options={[['ADNI1','ADNI 1'],['ADNI2','ADNI 2'],['ADNI3','ADNI 3'],['ADNIGO','ADNI GO']]} /></div>
-                <div><Label text="Cognitive Complaint at Baseline" /><SelectInput name="PTCOGBEG" value={form.PTCOGBEG} onChange={onChange} options={[['1','Yes — complaint reported'],['2','No — no complaint']]} /></div>
-                <div><Label text="Additional Diagnosis" /><SelectInput name="PTADDX" value={form.PTADDX} onChange={onChange} options={[['2','No additional diagnosis'],['1','Yes — additional diagnosis']]} /></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div><Label text="ADNI Study Protocol" /><SelectInput name="ORIGPROT" value={form.ORIGPROT} onChange={onChange} options={[['ADNI1','ADNI 1'],['ADNI2','ADNI 2'],['ADNI3','ADNI 3'],['ADNIGO','ADNI GO']]} /></div>
+                  <div><Label text="Cognitive Complaint at Baseline" /><SelectInput name="PTCOGBEG" value={form.PTCOGBEG} onChange={onChange} options={[['1','Yes — complaint reported'],['2','No — no complaint']]} /></div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <div><Label text="Additional Diagnosis" /><SelectInput name="PTADDX" value={form.PTADDX} onChange={onChange} options={[['2','No additional diagnosis'],['1','Yes — additional diagnosis']]} /></div>
+                  <div><Label text="FreeSurfer Version" /><SelectInput name="FSVERSION_bl" value={form.FSVERSION_bl} onChange={onChange} options={[['FreeSurfer Version 4.3','FreeSurfer 4.3'],['FreeSurfer Version 5.1','FreeSurfer 5.1'],['FreeSurfer Version 5.3.0','FreeSurfer 5.3'],['FreeSurfer Version 6.0','FreeSurfer 6.0']]} /></div>
+                </div>
+                <div style={{ maxWidth: 260 }}><Label text="Visit Date" hint="(YYYY-MM-DD)" /><DateInput name="VISDATE_ptd" value={form.VISDATE_ptd} onChange={onChange} /></div>
+
+                <div>
+                  <Label text="MRI Scan" hint="(optional — DICOM .zip)" />
+                  <MriDropzone
+                    file={mriFile}
+                    onPick={setMriFile}
+                    onClear={() => setMriFile(null)}
+                  />
+                </div>
+
+                <div style={{ background: 'rgba(124,58,237,0.06)', border: '0.5px solid rgba(124,58,237,0.15)', borderRadius: 14, padding: 12 }}>
+                  <p style={{ fontSize: 12, color: '#6d28d9', fontFamily: FONT }}>Study & visit fields contextualize the assessment — defaults match the most common ADNI cohort. Adding an MRI scan triggers the fused CNN + XGBoost model.</p>
+                </div>
               </div>
             )}
 
@@ -626,12 +728,25 @@ function ResultsPhase({ result, aiRecs, onReset, onBack }) {
             </div>
 
             {/* Section: AI Insights — Vibrant large-card style */}
-            {parsedRecs && parsedRecs.length > 0 && (
-              <div ref={el => sectionsRef.current[4] = el} style={{ marginBottom: 28 }}>
-                {/* Divider */}
-                <div style={{ height: '0.5px', background: 'rgba(26,42,58,0.08)', marginBottom: 32 }} />
+            <div ref={el => sectionsRef.current[4] = el} style={{ marginBottom: 28 }}>
+              {/* Divider */}
+              <div style={{ height: '0.5px', background: 'rgba(26,42,58,0.08)', marginBottom: 32 }} />
 
-                {parsedRecs.map(({ num, title, color, body }) => (
+              {(!parsedRecs || parsedRecs.length === 0) && (
+                <div style={{ marginBottom: 32 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <span style={{ fontSize: 16, color: '#60a5fa', letterSpacing: 2, fontWeight: 700 }}>·:·</span>
+                    <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1a2a3a', fontFamily: FONT, letterSpacing: '-0.02em' }}>AI Insights</h2>
+                  </div>
+                  <div style={{ padding: '16px 20px', borderRadius: 16, background: 'rgba(37,99,235,0.06)', border: '0.5px solid rgba(37,99,235,0.15)' }}>
+                    <p style={{ fontSize: 14, color: '#1d4ed8', lineHeight: 1.7, fontFamily: FONT }}>
+                      AI insights are unavailable right now. The clinical narrative service didn't respond — verify <code style={{ fontFamily: 'monospace', background: 'rgba(37,99,235,0.10)', padding: '1px 6px', borderRadius: 4 }}>OPENAI_API_KEY</code> is set in <code style={{ fontFamily: 'monospace', background: 'rgba(37,99,235,0.10)', padding: '1px 6px', borderRadius: 4 }}>web-app/backend/.env</code>, then restart the backend.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {parsedRecs && parsedRecs.length > 0 && parsedRecs.map(({ num, title, color, body }) => (
                   <div key={num} style={{ marginBottom: 40 }}>
                     {/* Section heading — Vibrant style with ·:· icon */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
@@ -658,8 +773,7 @@ function ResultsPhase({ result, aiRecs, onReset, onBack }) {
                     )}
                   </div>
                 ))}
-              </div>
-            )}
+            </div>
 
             {/* Run another */}
             <div ref={el => sectionsRef.current[5] = el}>
@@ -774,11 +888,11 @@ function ResultsPhase({ result, aiRecs, onReset, onBack }) {
           position: 'absolute', bottom: 28, left: '50%', transform: 'translateX(-50%)',
           padding: '6px 16px', borderRadius: 999,
           background: 'rgba(255,255,255,0.28)', backdropFilter: 'blur(12px)',
-          border: '0.5px solid rgba(255,255,255,0.5)',
-          fontSize: 11, fontWeight: 600, color: 'rgba(26,42,58,0.60)',
-          whiteSpace: 'nowrap', fontFamily: FONT, zIndex: 1,
+          border: `0.5px solid ${col.border}`,
+          fontSize: 11, fontWeight: 600, color: col.text,
+          whiteSpace: 'nowrap', fontFamily: FONT, zIndex: 2,
         }}>
-          3D Neural Visualization
+          {DIAGNOSIS_LABELS[result.prediction]}
         </div>
       </div>
 
@@ -796,6 +910,7 @@ function ResultsPhase({ result, aiRecs, onReset, onBack }) {
 ══════════════════════════════════════════ */
 export default function AIDiagnosis({ onBack, onPhaseChange }) {
   const [form, setForm]       = useState(INIT);
+  const [mriFile, setMriFile] = useState(null);
   const [phase, setPhase]     = useState('input');
   const [result, setResult]   = useState(null);
   const [aiRecs, setAiRecs]   = useState(null);
@@ -819,7 +934,25 @@ export default function AIDiagnosis({ onBack, onPhaseChange }) {
         payload[k] = STRING_FIELDS.includes(k) ? v : parseFloat(v);
         if (!STRING_FIELDS.includes(k) && isNaN(payload[k])) delete payload[k];
       });
-      const res = await api.post('/predict', payload);
+
+      // When an MRI zip is attached, run the fused (XGBoost + CNN) pipeline
+      // via multipart. Otherwise stick with the tabular JSON endpoint.
+      let res;
+      if (mriFile) {
+        const fd = new FormData();
+        fd.append('tabular', JSON.stringify(payload));
+        fd.append('scan', mriFile);
+        res = await api.post('/predict/fused', fd, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'X-Tabular-Data': JSON.stringify(payload),
+          },
+          // CNN inference on CPU can take a while.
+          timeout: 180_000,
+        });
+      } else {
+        res = await api.post('/predict', payload);
+      }
       if (res.data.success) {
         setLoading(false);
         if (inputWrapRef.current) {
@@ -847,7 +980,7 @@ export default function AIDiagnosis({ onBack, onPhaseChange }) {
   };
 
   const handleReset = () => {
-    setResult(null); setAiRecs(null); setForm(INIT); setError('');
+    setResult(null); setAiRecs(null); setForm(INIT); setMriFile(null); setError('');
     setPhaseWithCallback('input');
   };
 
@@ -863,6 +996,7 @@ export default function AIDiagnosis({ onBack, onPhaseChange }) {
         <div ref={inputWrapRef}>
           <InputPhase
             form={form} setForm={setForm}
+            mriFile={mriFile} setMriFile={setMriFile}
             onSubmit={onSubmit} loading={loading}
             error={error} onBack={onBack}
           />

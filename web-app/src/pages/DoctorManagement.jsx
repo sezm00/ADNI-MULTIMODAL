@@ -4,6 +4,7 @@ import { gsap } from 'gsap';
 import { appointmentsAPI, doctorsAPI } from '../services/api';
 import AIDiagnosis from './AIDiagnosis';
 import BrainCanvasMini from '../components/BrainCanvasMini';
+import { toAppointmentList as toMockAppointments } from '../data/mockPatients';
 
 /* ─── glass card style ─── */
 const glass = {
@@ -438,7 +439,7 @@ const OverviewView = ({ statistics, appointments, loading }) => {
 ═══════════════════════════════════════════ */
 function DoctorManagement() {
   const navigate = useNavigate();
-  const [selectedDate, setSelectedDate] = useState(15);
+  const [selectedDate, setSelectedDate] = useState(5);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [activeView, setActiveView] = useState('overview');
   const [appointments, setAppointments] = useState([]);
@@ -448,6 +449,9 @@ function DoctorManagement() {
   const [user, setUser] = useState(null);
   const [aiFullscreen, setAiFullscreen] = useState(false);
   const [aiPhase, setAiPhase] = useState('input'); // 'input' | 'results'
+  const [selectedConversationId, setSelectedConversationId] = useState(null);
+  const [messageDraft, setMessageDraft] = useState('');
+  const [conversationOverrides, setConversationOverrides] = useState({}); // id -> appended messages
 
   const sidebarRef  = useRef(null);
   const navListRef  = useRef(null);
@@ -539,36 +543,14 @@ function DoctorManagement() {
     }
   }, [aiFullscreen]);
 
+  // Dashboard runs entirely off the hardcoded mock roster — no backend round trip.
+  // This keeps every section (Appointments, Patients, Schedule, Messages)
+  // populated with the same 10-patient set including conversations.
   const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await appointmentsAPI.getAll();
-      if (response.data.success) {
-        const formattedAppointments = response.data.appointments.map(apt => ({
-          id: apt._id,
-          time: new Date(apt.date + ' ' + apt.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          patientName: apt.patientId?.name || 'Unknown Patient',
-          condition: apt.condition,
-          status: apt.status,
-          avatar: apt.patientId?.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop',
-          patientDetails: {
-            age: apt.patientId?.age ? `${apt.patientId.age} Years, ${apt.patientId.gender}` : 'N/A',
-            mrn: `MRN-${apt.patientId?._id?.slice(-8) || '00000000'}`,
-            time: apt.time,
-            specialNote: apt.consultationNotes || apt.notes || 'No notes available',
-            fee: `${apt.fee || 0}$`,
-            paymentStatus: apt.paymentStatus || 'Pending',
-            cardInfo: apt.cardInfo || 'N/A',
-          },
-        }));
-        setAppointments(formattedAppointments);
-      }
-    } catch (err) {
-      setError('Failed to load appointments.');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    setError('');
+    setAppointments(toMockAppointments());
+    setLoading(false);
   };
 
   const fetchStatistics = async (userId) => {
@@ -580,11 +562,14 @@ function DoctorManagement() {
     } catch {}
   };
 
-  const handleUpdateAppointment = async (appointmentId, updates) => {
-    try {
-      const response = await appointmentsAPI.update(appointmentId, updates);
-      if (response.data.success) await fetchAppointments();
-    } catch { setError('Failed to update appointment'); }
+  // Local-only update — works against the mock roster without needing a backend record.
+  const handleUpdateAppointment = (appointmentId, updates) => {
+    setAppointments(prev => prev.map(apt =>
+      apt.id === appointmentId ? { ...apt, ...updates } : apt
+    ));
+    setSelectedAppointment(prev =>
+      prev && prev.id === appointmentId ? { ...prev, ...updates } : prev
+    );
   };
 
   const handleLogout = () => {
@@ -963,12 +948,17 @@ function DoctorManagement() {
                       {days.map((d) => <div key={d} style={{ textAlign: 'center', fontSize: 12, color: 'rgba(26,42,58,0.4)', fontWeight: 600, padding: '4px 0' }}>{d.slice(0,2)}</div>)}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
-                      {dates.flat().map((date, idx) => (
+                      {dates.flat().map((date, idx) => {
+                        const dayCount = date ? appointments.filter(a => a.dateNum === date).length : 0;
+                        return (
                         <button
                           key={idx}
                           onClick={() => date && setSelectedDate(date)}
                           style={{
-                            width: '100%', height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 14, fontSize: 14, fontWeight: 500, cursor: date ? 'pointer' : 'default',
+                            width: '100%', height: 44, position: 'relative',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            borderRadius: 14, fontSize: 14, fontWeight: 500,
+                            cursor: date ? 'pointer' : 'default',
                             visibility: date ? 'visible' : 'hidden',
                             background: date === selectedDate ? '#2563eb' : 'transparent',
                             color: date === selectedDate ? '#fff' : '#1a2a3a',
@@ -979,20 +969,34 @@ function DoctorManagement() {
                           onMouseLeave={e => { if (date && date !== selectedDate) e.currentTarget.style.background = 'transparent'; }}
                         >
                           {date}
+                          {dayCount > 0 && (
+                            <span style={{
+                              position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
+                              width: 4, height: 4, borderRadius: '50%',
+                              background: date === selectedDate ? '#fff' : '#2563eb',
+                            }} />
+                          )}
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* appointments list */}
+                  {/* appointments list — filtered by the selected calendar day */}
+                  {(() => {
+                    const dayApts = appointments
+                      .filter(a => a.dateNum === selectedDate)
+                      .sort((a, b) => a.time.localeCompare(b.time));
+                    return (
                   <div style={{ ...glass, padding: 24 }}>
                     <p style={{ fontSize: 14, fontWeight: 600, color: '#1a2a3a', marginBottom: 16 }}>
                       Appointments — <span style={{ color: '#2563eb' }}>Dec {selectedDate}</span>
+                      <span style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)', fontWeight: 500, marginLeft: 8 }}>· {dayApts.length} scheduled</span>
                     </p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {appointments.length === 0 ? (
+                      {dayApts.length === 0 ? (
                         <p style={{ fontSize: 13, color: 'rgba(26,42,58,0.35)', textAlign: 'center', padding: '40px 0' }}>No appointments for this day</p>
-                      ) : appointments.slice(0, 8).map((apt) => (
+                      ) : dayApts.map((apt) => (
                         <div key={apt.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'rgba(26,42,58,0.03)', borderRadius: 16, border: '0.5px solid rgba(26,42,58,0.05)', cursor: 'pointer', transition: 'all 0.15s' }}
                           onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,42,58,0.06)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'rgba(26,42,58,0.03)'}
@@ -1011,81 +1015,334 @@ function DoctorManagement() {
                       ))}
                     </div>
                   </div>
+                    );
+                  })()}
                 </div>
               </>
             )}
 
             {/* ── REPORTS ── */}
-            {activeView === 'reports' && (
-              <>
-                <div style={{ marginBottom: 20 }}>
-                  <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a2a3a' }}>Medical Reports</h2>
-                  <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>Patient medical record overview</p>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
-                  {[
-                    { label: 'Lab Results', sub: '48 reports', color: '#2563eb', bg: 'rgba(37,99,235,0.08)', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/> },
-                    { label: 'Imaging Studies', sub: '23 scans', color: '#7c3aed', bg: 'rgba(124,58,237,0.08)', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/> },
-                    { label: 'Prescriptions', sub: '156 entries', color: '#16a34a', bg: 'rgba(22,163,74,0.08)', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/> },
-                    { label: 'Visit History', sub: '98 visits', color: '#f97316', bg: 'rgba(249,115,22,0.08)', icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/> },
-                  ].map((r) => (
-                    <div key={r.label} style={{ ...glass, padding: 24, cursor: 'pointer', transition: 'all 0.15s' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.8)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.65)'}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                        <div style={{ width: 40, height: 40, background: r.bg, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <svg style={{ width: 20, height: 20, color: r.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor">{r.icon}</svg>
-                        </div>
-                        <div>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a' }}>{r.label}</p>
-                          <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)' }}>{r.sub}</p>
-                        </div>
-                      </div>
-                      <button style={{ width: '100%', padding: '10px 0', background: r.color, color: '#fff', fontSize: 12, fontWeight: 600, borderRadius: 12, border: 'none', cursor: 'pointer', opacity: 0.9, transition: 'opacity 0.15s' }}
-                        onMouseEnter={e => e.target.style.opacity = '1'}
-                        onMouseLeave={e => e.target.style.opacity = '0.9'}
-                      >View All</button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+            {activeView === 'reports' && (() => {
+              const kpis = [
+                { label: 'Lab Results',     count: 48,  delta: '+12%', positive: true,  color: '#2563eb', bg: 'rgba(37,99,235,0.10)',  spark: [12, 14, 11, 16, 18, 17, 22, 24], iconPath: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+                { label: 'Imaging Studies', count: 23,  delta: '+3',   positive: true,  color: '#7c3aed', bg: 'rgba(124,58,237,0.10)', spark: [5, 6, 4, 7, 8, 7, 9, 11],         iconPath: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+                { label: 'Prescriptions',   count: 156, delta: '+8%',  positive: true,  color: '#16a34a', bg: 'rgba(22,163,74,0.10)',  spark: [120, 128, 132, 134, 141, 145, 150, 156], iconPath: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+                { label: 'Critical Flags',  count: 4,   delta: '-1',   positive: true,  color: '#ef4444', bg: 'rgba(239,68,68,0.10)',  spark: [7, 8, 6, 6, 5, 5, 5, 4],          iconPath: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+              ];
 
-            {/* ── MESSAGES ── */}
-            {activeView === 'messages' && (
-              <>
-                <div style={{ marginBottom: 20 }}>
-                  <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a2a3a' }}>Messages</h2>
-                  <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>Patient communications</p>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, height: 'calc(100vh - 220px)' }}>
-                  <div style={{ ...glass, padding: 16, display: 'flex', flexDirection: 'column' }}>
-                    <input type="text" placeholder="Search…" style={{ width: '100%', padding: '8px 12px', background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.08)', borderRadius: 12, fontSize: 13, color: '#1a2a3a', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }} />
-                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {appointments.map((apt) => (
-                        <div key={apt.id} style={{ padding: 12, background: 'rgba(26,42,58,0.03)', borderRadius: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'background 0.15s' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,42,58,0.06)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'rgba(26,42,58,0.03)'}
+              const reportTypes = [
+                { label: 'Lab Results',     count: 48,  pct: 48 / 325 * 100, color: '#2563eb' },
+                { label: 'Prescriptions',   count: 156, pct: 156 / 325 * 100, color: '#16a34a' },
+                { label: 'Visit History',   count: 98,  pct: 98 / 325 * 100, color: '#f97316' },
+                { label: 'Imaging Studies', count: 23,  pct: 23 / 325 * 100, color: '#7c3aed' },
+              ];
+
+              const recentReports = appointments.slice(0, 8).map((apt, i) => {
+                const types = [
+                  { type: 'Lab Panel',       color: '#2563eb', bg: 'rgba(37,99,235,0.10)' },
+                  { type: 'MRI Scan',        color: '#7c3aed', bg: 'rgba(124,58,237,0.10)' },
+                  { type: 'Prescription',    color: '#16a34a', bg: 'rgba(22,163,74,0.10)' },
+                  { type: 'Visit Note',      color: '#f97316', bg: 'rgba(249,115,22,0.10)' },
+                  { type: 'Cognitive Test',  color: '#0ea5e9', bg: 'rgba(14,165,233,0.10)' },
+                  { type: 'Genetic Panel',   color: '#ec4899', bg: 'rgba(236,72,153,0.10)' },
+                ];
+                const t = types[i % types.length];
+                const ages = ['2h ago', '5h ago', 'Yesterday', '2d ago', '3d ago', '5d ago', '1w ago', '2w ago'];
+                return { ...apt, reportType: t.type, typeColor: t.color, typeBg: t.bg, when: ages[i] || `${i}d ago` };
+              });
+
+              const criticalFindings = [
+                { patient: 'David Okonkwo',   note: 'CDR-SB rose from 1.5 → 2.5 over 6 months — escalate review',       severity: 'high' },
+                { patient: 'Sofia Bianchi',   note: 'Caregiver burnout flagged — schedule respite consult',              severity: 'medium' },
+                { patient: 'Walter Ekstrand', note: 'Wandering incident reported — safety plan urgent',                  severity: 'high' },
+                { patient: 'Theodore Park',   note: 'Lecanemab month-3 MRI due in 5 days — watch for ARIA',              severity: 'medium' },
+              ];
+
+              const sevColor = (s) => s === 'high' ? '#ef4444' : '#f97316';
+              const sevBg    = (s) => s === 'high' ? 'rgba(239,68,68,0.06)' : 'rgba(249,115,22,0.06)';
+              const sevBorder= (s) => s === 'high' ? 'rgba(239,68,68,0.18)' : 'rgba(249,115,22,0.18)';
+
+              return (
+                <>
+                  <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+                    <div>
+                      <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a2a3a' }}>Medical Reports</h2>
+                      <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>Clinical record overview — last 30 days</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button style={{ padding: '8px 14px', borderRadius: 12, border: '0.5px solid rgba(26,42,58,0.10)', background: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: 500, color: '#1a2a3a', cursor: 'pointer' }}>Last 30 days ▾</button>
+                      <button style={{ padding: '8px 14px', borderRadius: 12, border: 'none', background: '#2563eb', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <svg style={{ width: 13, height: 13 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Export
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── KPI strip ── */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
+                    {kpis.map(k => {
+                      const maxV = Math.max(...k.spark);
+                      return (
+                        <div key={k.label} style={{ ...glass, padding: 18, transition: 'all 0.15s', cursor: 'pointer' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.82)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.65)'}
                         >
-                          <img src={apt.avatar} alt={apt.patientName} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 12, fontWeight: 600, color: '#1a2a3a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apt.patientName}</p>
-                            <p style={{ fontSize: 10, color: 'rgba(26,42,58,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Last message preview…</p>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                            <div style={{ width: 34, height: 34, background: k.bg, borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <svg style={{ width: 16, height: 16, color: k.color }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={k.iconPath}/></svg>
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 999, background: k.positive ? 'rgba(22,163,74,0.10)' : 'rgba(239,68,68,0.10)', color: k.positive ? '#16a34a' : '#ef4444' }}>{k.delta}</span>
                           </div>
+                          <p style={{ fontSize: 26, fontWeight: 700, color: '#1a2a3a', lineHeight: 1 }}>{k.count}</p>
+                          <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.5)', marginTop: 4, marginBottom: 10 }}>{k.label}</p>
+                          {/* sparkline */}
+                          <svg viewBox={`0 0 ${(k.spark.length - 1) * 14} 30`} style={{ width: '100%', height: 30, display: 'block' }} preserveAspectRatio="none">
+                            <defs>
+                              <linearGradient id={`spark-${k.label}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={k.color} stopOpacity="0.30" />
+                                <stop offset="100%" stopColor={k.color} stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+                            <polyline
+                              fill="none" stroke={k.color} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"
+                              points={k.spark.map((v, i) => `${i * 14},${30 - (v / maxV) * 28}`).join(' ')}
+                            />
+                            <polygon
+                              fill={`url(#spark-${k.label})`}
+                              points={`0,30 ${k.spark.map((v, i) => `${i * 14},${30 - (v / maxV) * 28}`).join(' ')} ${(k.spark.length - 1) * 14},30`}
+                            />
+                          </svg>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ── middle row: recent + distribution ── */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.55fr 1fr', gap: 16, marginBottom: 16 }}>
+                    {/* Recent Reports */}
+                    <div style={{ ...glass, padding: 20 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                        <div>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#1a2a3a' }}>Recent Reports</p>
+                          <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>Latest activity across all patients</p>
+                        </div>
+                        <button style={{ fontSize: 12, fontWeight: 600, color: '#2563eb', background: 'none', border: 'none', cursor: 'pointer' }}>View all →</button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {recentReports.map((r, i) => (
+                          <div key={r.id + '-' + i} style={{
+                            display: 'flex', alignItems: 'center', gap: 12,
+                            padding: '10px 12px', borderRadius: 12,
+                            background: 'rgba(26,42,58,0.025)',
+                            border: '0.5px solid rgba(26,42,58,0.04)',
+                            cursor: 'pointer', transition: 'all 0.15s',
+                          }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(26,42,58,0.05)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'rgba(26,42,58,0.025)'}
+                          >
+                            <img src={r.avatar} alt={r.patientName} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.patientName}</p>
+                              <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.condition}</p>
+                            </div>
+                            <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 700, background: r.typeBg, color: r.typeColor, flexShrink: 0 }}>{r.reportType}</span>
+                            <span style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)', minWidth: 70, textAlign: 'right', flexShrink: 0 }}>{r.when}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Distribution */}
+                    <div style={{ ...glass, padding: 20 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#1a2a3a' }}>Reports by Type</p>
+                      <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)', marginTop: 2, marginBottom: 18 }}>325 total this period</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {reportTypes.map(rt => (
+                          <div key={rt.label}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                              <span style={{ fontSize: 12, fontWeight: 600, color: '#1a2a3a' }}>{rt.label}</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: rt.color }}>{rt.count}</span>
+                            </div>
+                            <div style={{ width: '100%', height: 8, background: 'rgba(26,42,58,0.06)', borderRadius: 999, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', borderRadius: 999, width: `${rt.pct}%`, background: `linear-gradient(90deg, ${rt.color}, ${rt.color}dd)`, transition: 'width 0.6s ease' }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ marginTop: 22, padding: 14, borderRadius: 14, background: 'rgba(37,99,235,0.05)', border: '0.5px solid rgba(37,99,235,0.12)' }}>
+                        <p style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 600, marginBottom: 4 }}>Insight</p>
+                        <p style={{ fontSize: 12, color: '#1a2a3a', lineHeight: 1.55 }}>Prescription volume is up <strong>8%</strong> vs. last month — driven mostly by AD treatment adjustments.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Critical Findings ── */}
+                  <div style={{ ...glass, padding: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                      <div style={{ width: 26, height: 26, borderRadius: 9, background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <svg style={{ width: 14, height: 14, color: '#ef4444' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#1a2a3a' }}>Critical Findings</p>
+                        <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.4)' }}>Items flagged for review this week</p>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444', padding: '4px 10px', borderRadius: 999, background: 'rgba(239,68,68,0.10)' }}>{criticalFindings.length} active</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                      {criticalFindings.map((c, i) => (
+                        <div key={i} style={{ padding: '12px 14px', borderRadius: 12, background: sevBg(c.severity), border: `0.5px solid ${sevBorder(c.severity)}`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: sevColor(c.severity), marginTop: 6, flexShrink: 0 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a' }}>{c.patient}</p>
+                            <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.65)', marginTop: 2, lineHeight: 1.5 }}>{c.note}</p>
+                          </div>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: sevColor(c.severity), padding: '2px 8px', borderRadius: 999, background: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0 }}>{c.severity}</span>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div style={{ ...glass, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ textAlign: 'center', color: 'rgba(26,42,58,0.2)' }}>
-                      <svg style={{ width: 56, height: 56, margin: '0 auto 12px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
-                      <p style={{ fontSize: 13 }}>Select a conversation</p>
+                </>
+              );
+            })()}
+
+            {/* ── MESSAGES ── */}
+            {activeView === 'messages' && (() => {
+              const selectedConvo = appointments.find(a => a.id === selectedConversationId) || null;
+              const baseMessages = selectedConvo?.messages || [];
+              const extraMessages = conversationOverrides[selectedConversationId] || [];
+              const allMessages = [...baseMessages, ...extraMessages];
+
+              const sendMessage = () => {
+                const text = messageDraft.trim();
+                if (!text || !selectedConvo) return;
+                const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                setConversationOverrides(prev => ({
+                  ...prev,
+                  [selectedConvo.id]: [...(prev[selectedConvo.id] || []), { from: 'doctor', time: now, text }],
+                }));
+                setMessageDraft('');
+              };
+
+              return (
+                <>
+                  <div style={{ marginBottom: 20 }}>
+                    <h2 style={{ fontSize: 24, fontWeight: 700, color: '#1a2a3a' }}>Messages</h2>
+                    <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', marginTop: 2 }}>Patient communications</p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, height: 'calc(100vh - 220px)' }}>
+                    {/* ── conversation list ── */}
+                    <div style={{ ...glass, padding: 16, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <input type="text" placeholder="Search patients…" style={{ width: '100%', padding: '9px 12px', background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.08)', borderRadius: 12, fontSize: 13, color: '#1a2a3a', outline: 'none', marginBottom: 12, boxSizing: 'border-box' }} />
+                      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {appointments.map((apt) => {
+                          const last = apt.messages?.[apt.messages.length - 1];
+                          const isActive = selectedConversationId === apt.id;
+                          return (
+                            <div
+                              key={apt.id}
+                              onClick={() => setSelectedConversationId(apt.id)}
+                              style={{
+                                padding: 12, borderRadius: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12,
+                                background: isActive ? 'rgba(37,99,235,0.10)' : 'rgba(26,42,58,0.03)',
+                                border: isActive ? '0.5px solid rgba(37,99,235,0.20)' : '0.5px solid transparent',
+                                transition: 'all 0.15s',
+                              }}
+                              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(26,42,58,0.06)'; }}
+                              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'rgba(26,42,58,0.03)'; }}
+                            >
+                              <img src={apt.avatar} alt={apt.patientName} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
+                                  <p style={{ fontSize: 13, fontWeight: 600, color: '#1a2a3a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{apt.patientName}</p>
+                                  <span style={{ fontSize: 10, color: 'rgba(26,42,58,0.4)', flexShrink: 0 }}>{last?.time || ''}</span>
+                                </div>
+                                <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.55)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {last ? (last.from === 'doctor' ? 'You: ' : '') + last.text : 'No messages yet'}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* ── chat pane ── */}
+                    <div style={{ ...glass, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      {selectedConvo ? (
+                        <>
+                          {/* header */}
+                          <div style={{ padding: '16px 20px', borderBottom: '0.5px solid rgba(26,42,58,0.08)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <img src={selectedConvo.avatar} alt={selectedConvo.patientName} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 14, fontWeight: 600, color: '#1a2a3a' }}>{selectedConvo.patientName}</p>
+                              <p style={{ fontSize: 11, color: 'rgba(26,42,58,0.45)' }}>{selectedConvo.condition} · {selectedConvo.patientDetails?.age}</p>
+                            </div>
+                            <span style={{ padding: '4px 10px', borderRadius: 999, fontSize: 10, fontWeight: 600, background: statusBg(selectedConvo.status), color: statusColor(selectedConvo.status) }}>
+                              {selectedConvo.status}
+                            </span>
+                          </div>
+
+                          {/* messages */}
+                          <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {allMessages.map((m, i) => {
+                              const isDoctor = m.from === 'doctor';
+                              return (
+                                <div key={i} style={{ display: 'flex', justifyContent: isDoctor ? 'flex-end' : 'flex-start' }}>
+                                  <div style={{ maxWidth: '70%' }}>
+                                    <div style={{
+                                      padding: '10px 14px', borderRadius: 16,
+                                      borderBottomRightRadius: isDoctor ? 4 : 16,
+                                      borderBottomLeftRadius: isDoctor ? 16 : 4,
+                                      background: isDoctor ? '#2563eb' : 'rgba(26,42,58,0.06)',
+                                      color: isDoctor ? '#fff' : '#1a2a3a',
+                                      fontSize: 13, lineHeight: 1.55,
+                                    }}>{m.text}</div>
+                                    <p style={{ fontSize: 10, color: 'rgba(26,42,58,0.4)', marginTop: 4, textAlign: isDoctor ? 'right' : 'left' }}>{m.time}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {allMessages.length === 0 && (
+                              <p style={{ fontSize: 12, color: 'rgba(26,42,58,0.4)', textAlign: 'center', marginTop: 40 }}>No messages yet — start the conversation below.</p>
+                            )}
+                          </div>
+
+                          {/* composer */}
+                          <div style={{ padding: '14px 18px', borderTop: '0.5px solid rgba(26,42,58,0.08)', display: 'flex', gap: 10 }}>
+                            <input
+                              type="text"
+                              value={messageDraft}
+                              onChange={e => setMessageDraft(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                              placeholder={`Message ${selectedConvo.patientName.split(' ')[0]}…`}
+                              style={{ flex: 1, padding: '10px 14px', background: 'rgba(26,42,58,0.04)', border: '0.5px solid rgba(26,42,58,0.08)', borderRadius: 12, fontSize: 13, color: '#1a2a3a', outline: 'none', boxSizing: 'border-box' }}
+                            />
+                            <button
+                              onClick={sendMessage}
+                              disabled={!messageDraft.trim()}
+                              style={{
+                                padding: '10px 20px', borderRadius: 12, border: 'none',
+                                background: messageDraft.trim() ? '#2563eb' : 'rgba(37,99,235,0.4)',
+                                color: '#fff', fontSize: 13, fontWeight: 600,
+                                cursor: messageDraft.trim() ? 'pointer' : 'not-allowed',
+                                transition: 'background 0.15s',
+                              }}
+                            >Send</button>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ textAlign: 'center', color: 'rgba(26,42,58,0.25)' }}>
+                            <svg style={{ width: 56, height: 56, margin: '0 auto 12px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
+                            <p style={{ fontSize: 13 }}>Select a conversation to start chatting</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              );
+            })()}
 
             </div>
           </main>

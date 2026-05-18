@@ -5,6 +5,12 @@ Main/data/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+.venv/
+venv/
+*.egg-info/
+
+# Editor backups
+*.bak
 
 # Node
 node_modules/

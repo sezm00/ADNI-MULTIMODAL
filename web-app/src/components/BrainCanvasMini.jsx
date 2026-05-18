@@ -1,11 +1,16 @@
-import React, { useRef, Suspense } from 'react';
+import React, { useRef, Suspense, useMemo } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils';
 
 const BrainModelMini = () => {
   const groupRef = useRef();
   const gltf = useLoader(GLTFLoader, '/brain.glb');
+  // The cached gltf.scene is a single Object3D — another mount (e.g. the AI
+  // Diagnosis results brain) would re-parent it and this canvas would render
+  // empty when navigating back. Clone so this component owns its own copy.
+  const scene = useMemo(() => SkeletonUtils.clone(gltf.scene), [gltf.scene]);
 
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
@@ -17,14 +22,14 @@ const BrainModelMini = () => {
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
-      <primitive object={gltf.scene} scale={4.8} />
+      <primitive object={scene} scale={4.8} />
       <ambientLight intensity={2} />
       <directionalLight position={[5, 5, 5]} intensity={1.5} color="#ffffff" />
       <directionalLight position={[-5, -5, -5]} intensity={1} color="#ffffff" />
       <directionalLight position={[0, 5, 5]} intensity={1.2} color="#ffffff" />
-      <pointLight position={[0, 0, 10]} intensity={0.9} color="#60a5fa" />
-      <pointLight position={[5, 0, 0]} intensity={0.6} color="#3b82f6" />
-      <pointLight position={[-5, 0, 0]} intensity={0.5} color="#8b5cf6" />
+      <pointLight position={[0, 0, 10]} intensity={0.9} color="#ffe0d0" />
+      <pointLight position={[5, 0, 0]} intensity={0.6} color="#ffd0bc" />
+      <pointLight position={[-5, 0, 0]} intensity={0.5} color="#ffc8a8" />
     </group>
   );
 };
